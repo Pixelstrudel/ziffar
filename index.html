@@ -1,0 +1,898 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ziffar Spiel</title>
+    <meta name="description" content="Ein webbasiertes Yacht-Spiel.">
+    <meta name="theme-color" content="#4A90E2"/>
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icons/icon-192x192.png"> <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            overscroll-behavior: none; /* Verhindert Pull-to-Refresh auf Mobilgeräten */
+        }
+        /* Stile für Würfel-SVGs */
+        .dice-svg {
+            width: 50px;
+            height: 50px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            padding: 5px;
+            background-color: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .dice-svg.held {
+            border-color: #4A90E2;
+            box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.5);
+            transform: translateY(-2px);
+        }
+        .dice-dot {
+            fill: #333;
+        }
+        /* Styling für Buttons und Score-Felder */
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .score-button {
+            transition: background-color 0.2s ease;
+        }
+        .score-button:not(:disabled):hover {
+            background-color: #e0f2fe; /* Light blue hover */
+        }
+        .score-button.selected {
+            background-color: #bae6fd; /* Slightly darker blue when selected */
+            font-weight: 500;
+        }
+        .score-button.scored {
+            background-color: #f3f4f6; /* Light gray when scored */
+            color: #6b7280; /* Gray text */
+            cursor: not-allowed;
+        }
+        .score-button.potential {
+             background-color: #fef9c3; /* Light yellow for potential scores */
+        }
+
+        /* Animation für Würfelwurf */
+        @keyframes roll {
+            0% { transform: rotate(0deg) scale(1); }
+            25% { transform: rotate(90deg) scale(1.1); }
+            50% { transform: rotate(180deg) scale(1); }
+            75% { transform: rotate(270deg) scale(1.1); }
+            100% { transform: rotate(360deg) scale(1); }
+        }
+        .rolling {
+            animation: roll 0.5s ease-out;
+        }
+
+        /* Verhindern, dass Text ausgewählt wird, während auf Würfel geklickt wird */
+        .noselect {
+          -webkit-touch-callout: none; /* iOS Safari */
+            -webkit-user-select: none; /* Safari */
+             -khtml-user-select: none; /* Konqueror HTML */
+               -moz-user-select: none; /* Old versions of Firefox */
+                -ms-user-select: none; /* Internet Explorer/Edge */
+                    user-select: none; /* Non-prefixed version, currently supported by Chrome, Edge, Opera and Firefox */
+        }
+
+        /* Styling für das Modalfenster */
+        .modal {
+            display: none; /* Hidden by default */
+            position: fixed; /* Stay in place */
+            z-index: 1000; /* Sit on top */
+            left: 0;
+            top: 0;
+            width: 100%; /* Full width */
+            height: 100%; /* Full height */
+            overflow: auto; /* Enable scroll if needed */
+            background-color: rgba(0,0,0,0.4); /* Black w/ opacity */
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: 15% auto; /* 15% from the top and centered */
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%; /* Could be more or less, depending on screen size */
+            max-width: 500px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .modal-close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .modal-close:hover,
+        .modal-close:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-blue-50 via-white to-blue-100 min-h-screen p-4 md:p-8 text-gray-800">
+
+    <div id="game-container" class="max-w-4xl mx-auto bg-white p-4 sm:p-6 md:p-8 rounded-xl shadow-lg">
+
+        <h1 class="text-3xl md:text-4xl font-bold text-center text-blue-600 mb-6">Ziffar</h1>
+
+        <div id="setup-screen" class="text-center mb-6">
+            <h2 class="text-xl font-semibold mb-4">Spieler hinzufügen</h2>
+            <div id="player-inputs" class="mb-4 space-y-2">
+                <input type="text" placeholder="Spieler 1 Name" class="player-name-input border p-2 rounded w-full max-w-xs mx-auto block" value="Spieler 1">
+            </div>
+            <button id="add-player-btn" class="bg-green-500 hover:bg-green-600 text-white font-medium py-2 px-4 rounded mr-2 transition duration-150 ease-in-out">
+                Weiteren Spieler hinzufügen
+            </button>
+            <button id="start-game-btn" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded transition duration-150 ease-in-out">
+                Spiel starten
+            </button>
+        </div>
+
+        <div id="game-screen" class="hidden">
+            <div class="flex justify-between items-center mb-4 flex-wrap gap-2">
+                <div id="player-info" class="text-lg font-semibold">
+                    Spieler: <span id="current-player-name" class="text-blue-700"></span>
+                </div>
+                <div id="round-info" class="text-sm text-gray-600">
+                    Runde <span id="current-round">1</span> / 13
+                </div>
+                <div id="rolls-left-info" class="text-sm text-gray-600">
+                    Würfe übrig: <span id="rolls-left">3</span>
+                </div>
+            </div>
+
+            <div class="mb-6 text-center noselect">
+                <h2 class="text-lg font-medium mb-3">Würfel (zum Halten anklicken)</h2>
+                <div id="dice-area" class="flex justify-center items-center space-x-2 sm:space-x-4 mb-4">
+                    </div>
+                <button id="roll-button" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-5 rounded-lg shadow text-lg transition duration-150 ease-in-out">
+                    Würfeln
+                </button>
+            </div>
+
+            <div class="mb-6">
+                <h2 class="text-lg font-medium mb-3 text-center">Punktetabelle</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
+                    <div>
+                        <h3 class="text-md font-semibold mb-2 text-blue-700">Obere Sektion</h3>
+                        <div id="upper-section" class="space-y-1">
+                            </div>
+                        <div class="mt-2 pt-2 border-t flex justify-between font-medium">
+                            <span>Bonus (ab 63 Pkt.)</span>
+                            <span id="upper-bonus">0</span>
+                        </div>
+                        <div class="mt-1 flex justify-between font-bold text-blue-800">
+                            <span>Gesamt Oben</span>
+                            <span id="upper-total">0</span>
+                        </div>
+                    </div>
+
+                    <div>
+                        <h3 class="text-md font-semibold mb-2 text-red-700">Untere Sektion</h3>
+                        <div id="lower-section" class="space-y-1">
+                            </div>
+                         <div class="mt-2 pt-2 border-t flex justify-between font-bold text-red-800">
+                            <span>Gesamt Unten</span>
+                            <span id="lower-total">0</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+             <div class="mt-6 pt-4 border-t-2 border-gray-300 text-center">
+                <div class="text-xl font-bold text-gray-800">
+                    Gesamtpunktzahl: <span id="grand-total" class="text-green-600">0</span>
+                </div>
+            </div>
+
+             <div class="mt-8 text-center">
+                 <button id="new-game-button" class="bg-gray-500 hover:bg-gray-600 text-white font-medium py-2 px-4 rounded transition duration-150 ease-in-out">
+                    Neues Spiel
+                </button>
+            </div>
+
+        </div> <div id="game-over-modal" class="modal">
+            <div class="modal-content">
+                <span id="modal-close-btn" class="modal-close">&times;</span>
+                <h2 id="game-over-title" class="text-2xl font-bold mb-4 text-green-600">Spiel vorbei!</h2>
+                <div id="final-scores" class="mb-4 text-left space-y-1">
+                    </div>
+                <p id="winner-announcement" class="font-semibold mb-6"></p>
+                <button id="modal-new-game-btn" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded transition duration-150 ease-in-out">
+                    Neues Spiel starten
+                </button>
+            </div>
+        </div>
+
+    </div> <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(registration => {
+                        console.log('ServiceWorker registration successful with scope: ', registration.scope);
+                    })
+                    .catch(err => {
+                        console.log('ServiceWorker registration failed: ', err);
+                    });
+            });
+        }
+    </script>
+
+    <script>
+        // --- DOM Elemente ---
+        const setupScreen = document.getElementById('setup-screen');
+        const gameScreen = document.getElementById('game-screen');
+        const playerInputsDiv = document.getElementById('player-inputs');
+        const addPlayerBtn = document.getElementById('add-player-btn');
+        const startGameBtn = document.getElementById('start-game-btn');
+        const playerNameInputs = () => document.querySelectorAll('.player-name-input');
+
+        const currentPlayerNameEl = document.getElementById('current-player-name');
+        const currentRoundEl = document.getElementById('current-round');
+        const rollsLeftEl = document.getElementById('rolls-left');
+        const diceArea = document.getElementById('dice-area');
+        const rollButton = document.getElementById('roll-button');
+        const upperSectionDiv = document.getElementById('upper-section');
+        const lowerSectionDiv = document.getElementById('lower-section');
+        const upperBonusEl = document.getElementById('upper-bonus');
+        const upperTotalEl = document.getElementById('upper-total');
+        const lowerTotalEl = document.getElementById('lower-total');
+        const grandTotalEl = document.getElementById('grand-total');
+        const newGameButton = document.getElementById('new-game-button');
+
+        const gameOverModal = document.getElementById('game-over-modal');
+        const modalCloseBtn = document.getElementById('modal-close-btn');
+        const finalScoresDiv = document.getElementById('final-scores');
+        const winnerAnnouncementEl = document.getElementById('winner-announcement');
+        const modalNewGameBtn = document.getElementById('modal-new-game-btn');
+
+        // --- Spielstatus Variablen ---
+        let players = []; // Array von Spieler-Objekten { name: string, scores: {}, upperTotal: 0, lowerTotal: 0, grandTotal: 0, bonus: 0 }
+        let currentPlayerIndex = 0;
+        let currentRound = 1;
+        let rollsLeft = 3;
+        let dice = [1, 1, 1, 1, 1]; // Aktuelle Würfelwerte
+        let heldDice = [false, false, false, false, false]; // Welche Würfel gehalten werden
+        let selectedCategory = null; // Welche Kategorie zum Eintragen ausgewählt wurde
+        let isFirstRoll = true; // Um zu verhindern, dass Scores vor dem ersten Wurf ausgewählt werden
+
+        // --- Spielkategorien ---
+        const categories = {
+            // Obere Sektion
+            'ones': { name: 'Einser', section: 'upper', scored: false, scoreFn: (d) => sumOfNumber(d, 1) },
+            'twos': { name: 'Zweier', section: 'upper', scored: false, scoreFn: (d) => sumOfNumber(d, 2) },
+            'threes': { name: 'Dreier', section: 'upper', scored: false, scoreFn: (d) => sumOfNumber(d, 3) },
+            'fours': { name: 'Vierer', section: 'upper', scored: false, scoreFn: (d) => sumOfNumber(d, 4) },
+            'fives': { name: 'Fünfer', section: 'upper', scored: false, scoreFn: (d) => sumOfNumber(d, 5) },
+            'sixes': { name: 'Sechser', section: 'upper', scored: false, scoreFn: (d) => sumOfNumber(d, 6) },
+            // Untere Sektion
+            'threeOfAKind': { name: 'Dreierpasch', section: 'lower', scored: false, scoreFn: (d) => hasNOfAKind(d, 3) ? sumAll(d) : 0 },
+            'fourOfAKind': { name: 'Viererpasch', section: 'lower', scored: false, scoreFn: (d) => hasNOfAKind(d, 4) ? sumAll(d) : 0 },
+            'fullHouse': { name: 'Full House', section: 'lower', scored: false, scoreFn: (d) => isFullHouse(d) ? 25 : 0 },
+            'smallStraight': { name: 'Kleine Straße', section: 'lower', scored: false, scoreFn: (d) => isStraight(d, 4) ? 30 : 0 },
+            'largeStraight': { name: 'Große Straße', section: 'lower', scored: false, scoreFn: (d) => isStraight(d, 5) ? 40 : 0 },
+            'yacht': { name: 'Yacht', section: 'lower', scored: false, scoreFn: (d) => hasNOfAKind(d, 5) ? 50 : 0 },
+            'chance': { name: 'Chance', section: 'lower', scored: false, scoreFn: (d) => sumAll(d) },
+            // Yacht Bonus wird separat gehandhabt
+        };
+
+        // --- Hilfsfunktionen für die Punkteberechnung ---
+        const countDice = (diceValues) => diceValues.reduce((acc, val) => { acc[val] = (acc[val] || 0) + 1; return acc; }, {});
+        const sumAll = (diceValues) => diceValues.reduce((sum, val) => sum + val, 0);
+        const sumOfNumber = (diceValues, num) => diceValues.filter(val => val === num).reduce((sum, val) => sum + val, 0);
+        const hasNOfAKind = (diceValues, n) => Object.values(countDice(diceValues)).some(count => count >= n);
+        const isFullHouse = (diceValues) => {
+            const counts = Object.values(countDice(diceValues));
+            return counts.length === 2 && counts.includes(3);
+        };
+        const isStraight = (diceValues, length) => {
+            const uniqueSorted = [...new Set(diceValues)].sort((a, b) => a - b);
+            if (uniqueSorted.length < length) return false;
+            for (let i = 0; i <= uniqueSorted.length - length; i++) {
+                let consecutive = true;
+                for (let j = 0; j < length - 1; j++) {
+                    if (uniqueSorted[i + j + 1] !== uniqueSorted[i + j] + 1) {
+                        consecutive = false;
+                        break;
+                    }
+                }
+                if (consecutive) return true;
+            }
+             // Sonderfälle für kleine Straße prüfen (z.B. 1,2,3,4 oder 2,3,4,5 oder 3,4,5,6)
+            if (length === 4) {
+                const straights = [[1,2,3,4], [2,3,4,5], [3,4,5,6]];
+                for (const straight of straights) {
+                    if (straight.every(val => uniqueSorted.includes(val))) return true;
+                }
+            }
+            return false;
+        };
+
+        // --- Würfel SVG Erstellung ---
+        function createDiceSVG(value, index, isHeld) {
+            const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+            svg.setAttribute("viewBox", "0 0 100 100");
+            svg.classList.add("dice-svg", "noselect");
+            if (isHeld) {
+                svg.classList.add("held");
+            }
+            svg.dataset.index = index; // Index speichern für Klick-Handler
+
+            // Punkte hinzufügen
+            const dotCoords = {
+                1: [[50, 50]],
+                2: [[25, 25], [75, 75]],
+                3: [[25, 25], [50, 50], [75, 75]],
+                4: [[25, 25], [75, 25], [25, 75], [75, 75]],
+                5: [[25, 25], [75, 25], [50, 50], [25, 75], [75, 75]],
+                6: [[25, 25], [75, 25], [25, 50], [75, 50], [25, 75], [75, 75]],
+            };
+
+            if (dotCoords[value]) {
+                dotCoords[value].forEach(coords => {
+                    const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+                    circle.setAttribute("cx", coords[0]);
+                    circle.setAttribute("cy", coords[1]);
+                    circle.setAttribute("r", "10"); // Radius des Punktes
+                    circle.classList.add("dice-dot");
+                    svg.appendChild(circle);
+                });
+            }
+
+            // Klick-Handler zum Halten/Lösen
+            svg.addEventListener('click', () => toggleHoldDice(index));
+
+            return svg;
+        }
+
+        // --- UI Update Funktionen ---
+        function updateDiceUI() {
+            diceArea.innerHTML = ''; // Alte Würfel entfernen
+            dice.forEach((value, index) => {
+                const dieElement = createDiceSVG(value, index, heldDice[index]);
+                // Animation hinzufügen, wenn der Würfel nicht gehalten wird und gewürfelt wurde
+                if (!heldDice[index] && !isFirstRoll) {
+                     // Kurze Verzögerung für besseren Effekt
+                    setTimeout(() => dieElement.classList.add('rolling'), index * 50);
+                    // Animation nach Abschluss entfernen
+                    dieElement.addEventListener('animationend', () => {
+                        dieElement.classList.remove('rolling');
+                    });
+                }
+                diceArea.appendChild(dieElement);
+            });
+        }
+
+        function updateScoreboardUI() {
+            const currentPlayer = players[currentPlayerIndex];
+            upperSectionDiv.innerHTML = '';
+            lowerSectionDiv.innerHTML = '';
+
+            // Temporäre Auswahl zurücksetzen
+            const currentSelection = document.querySelector('.score-button.selected');
+             if (currentSelection) {
+                currentSelection.classList.remove('selected');
+                currentSelection.disabled = false; // Wieder aktivierbar machen
+            }
+            selectedCategory = null;
+
+            Object.entries(categories).forEach(([key, category]) => {
+                const button = document.createElement('button');
+                button.classList.add('score-button', 'w-full', 'text-left', 'p-2', 'rounded', 'border', 'border-gray-200', 'flex', 'justify-between', 'items-center');
+                button.dataset.category = key;
+
+                const nameSpan = document.createElement('span');
+                nameSpan.textContent = category.name;
+
+                const scoreSpan = document.createElement('span');
+                scoreSpan.classList.add('font-medium');
+
+                if (currentPlayer.scores[key] !== undefined) {
+                    // Kategorie wurde bereits bewertet
+                    scoreSpan.textContent = currentPlayer.scores[key];
+                    button.disabled = true;
+                    button.classList.add('scored');
+                } else if (!isFirstRoll && rollsLeft < 3) {
+                    // Potenzielle Punktzahl anzeigen, wenn gewürfelt wurde
+                    const potentialScore = category.scoreFn(dice);
+                    scoreSpan.textContent = `(${potentialScore})`; // Potenzielle Punktzahl in Klammern
+                    button.classList.add('potential');
+                    button.addEventListener('click', () => selectScoreCategory(key, potentialScore));
+                } else {
+                    // Noch nicht gewürfelt oder erste Runde
+                    scoreSpan.textContent = '-';
+                    button.disabled = true; // Kann erst nach Wurf ausgewählt werden
+                }
+
+                button.appendChild(nameSpan);
+                button.appendChild(scoreSpan);
+
+                if (category.section === 'upper') {
+                    upperSectionDiv.appendChild(button);
+                } else {
+                    lowerSectionDiv.appendChild(button);
+                }
+            });
+
+            // Gesamtpunkte aktualisieren
+            upperBonusEl.textContent = currentPlayer.bonus;
+            upperTotalEl.textContent = currentPlayer.upperTotal + currentPlayer.bonus;
+            lowerTotalEl.textContent = currentPlayer.lowerTotal;
+            grandTotalEl.textContent = currentPlayer.grandTotal;
+        }
+
+        function updateGameInfoUI() {
+            currentPlayerNameEl.textContent = players[currentPlayerIndex].name;
+            currentRoundEl.textContent = currentRound;
+            rollsLeftEl.textContent = rollsLeft;
+            rollButton.disabled = rollsLeft === 0 || selectedCategory !== null; // Deaktivieren, wenn keine Würfe mehr oder Score ausgewählt
+            rollButton.textContent = rollsLeft === 3 ? "Würfeln" : `Nochmal würfeln (${rollsLeft})`;
+
+            // Titel aktualisieren, um anzuzeigen, wer dran ist
+            document.title = `Ziffar - ${players[currentPlayerIndex].name} ist dran`;
+        }
+
+        function updateUI() {
+            updateDiceUI();
+            updateScoreboardUI();
+            updateGameInfoUI();
+        }
+
+        // --- Spiel Logik Funktionen ---
+        function rollDice() {
+            if (rollsLeft === 0 || selectedCategory !== null) return; // Nicht würfeln, wenn keine Würfe mehr oder Score ausgewählt
+
+            isFirstRoll = false; // Es wurde mindestens einmal gewürfelt
+            dice.forEach((_, index) => {
+                if (!heldDice[index]) {
+                    dice[index] = Math.floor(Math.random() * 6) + 1;
+                }
+            });
+
+            rollsLeft--;
+            // Nach dem Wurf gehaltene Würfel nicht automatisch lösen
+            // heldDice = [false, false, false, false, false]; // Reset hold status after roll if desired
+
+            updateUI(); // UI aktualisieren, um neue Würfel und potenzielle Scores anzuzeigen
+             // Roll Button Text und Status aktualisieren
+            rollButton.textContent = rollsLeft > 0 ? `Nochmal würfeln (${rollsLeft})` : "Wähle eine Kategorie";
+            rollButton.disabled = rollsLeft === 0 || selectedCategory !== null;
+
+            // Wenn keine Würfe mehr übrig sind, muss der Spieler eine Kategorie wählen
+            if (rollsLeft === 0) {
+                 // Optional: Hinweis geben
+                console.log("Keine Würfe mehr übrig. Bitte wähle eine Kategorie zum Eintragen.");
+            }
+        }
+
+        function toggleHoldDice(index) {
+             // Man kann Würfel nur halten/lösen, wenn man schon gewürfelt hat und noch Würfe übrig sind
+            if (isFirstRoll || rollsLeft === 3 || rollsLeft === 0 || selectedCategory !== null) return;
+
+            heldDice[index] = !heldDice[index];
+            const dieElement = diceArea.querySelector(`[data-index="${index}"]`);
+            if (dieElement) {
+                dieElement.classList.toggle('held', heldDice[index]);
+            }
+            // Keine vollständige UI-Aktualisierung hier, nur den Würfel visuell ändern
+        }
+
+        function selectScoreCategory(categoryKey, potentialScore) {
+            if (isFirstRoll || rollsLeft === 3) return; // Kann nicht vor dem ersten Wurf auswählen
+            const currentPlayer = players[currentPlayerIndex];
+            if (currentPlayer.scores[categoryKey] !== undefined) return; // Bereits bewertet
+
+            // Alte Auswahl visuell zurücksetzen, falls vorhanden
+            const currentSelection = document.querySelector('.score-button.selected');
+            if (currentSelection) {
+                currentSelection.classList.remove('selected');
+                currentSelection.disabled = false; // Wieder aktivierbar machen
+                 // Potenzielle Klasse wieder hinzufügen, wenn nötig
+                if (!currentPlayer.scores[currentSelection.dataset.category]) {
+                    currentSelection.classList.add('potential');
+                }
+            }
+
+             // Neue Auswahl markieren
+            selectedCategory = categoryKey;
+            const selectedButton = document.querySelector(`button[data-category="${categoryKey}"]`);
+            if (selectedButton) {
+                 selectedButton.classList.remove('potential'); // Potenzial-Highlight entfernen
+                selectedButton.classList.add('selected'); // Auswahl-Highlight setzen
+                selectedButton.disabled = true; // Verhindern, dass derselbe Knopf nochmal geklickt wird, bevor bestätigt wird
+            }
+
+            // Roll-Button deaktivieren, da eine Kategorie ausgewählt wurde
+            rollButton.disabled = true;
+
+            // Nächsten Schritt auslösen: Punktzahl bestätigen und zum nächsten Spieler wechseln
+            confirmScore(categoryKey, potentialScore);
+        }
+
+        function confirmScore(categoryKey, score) {
+            const currentPlayer = players[currentPlayerIndex];
+            const category = categories[categoryKey];
+
+            // Punktzahl eintragen
+            currentPlayer.scores[categoryKey] = score;
+
+            // Gesamtpunkte neu berechnen
+            calculateTotals(currentPlayer);
+
+            // Nächster Zug vorbereiten
+            nextTurn();
+        }
+
+        function calculateTotals(player) {
+            player.upperTotal = 0;
+            player.lowerTotal = 0;
+
+            Object.keys(categories).forEach(key => {
+                if (player.scores[key] !== undefined) {
+                    if (categories[key].section === 'upper') {
+                        player.upperTotal += player.scores[key];
+                    } else if (categories[key].section === 'lower') {
+                        player.lowerTotal += player.scores[key];
+                    }
+                }
+            });
+
+            // Bonus prüfen
+            player.bonus = player.upperTotal >= 63 ? 35 : 0;
+
+            // Gesamtpunktzahl
+            player.grandTotal = player.upperTotal + player.bonus + player.lowerTotal;
+        }
+
+        function nextTurn() {
+            // Nächster Spieler
+            currentPlayerIndex = (currentPlayerIndex + 1) % players.length;
+
+            // Wenn der erste Spieler wieder dran ist, nächste Runde
+            if (currentPlayerIndex === 0) {
+                currentRound++;
+            }
+
+            // Spielende prüfen
+            if (currentRound > 13) {
+                endGame();
+                return;
+            }
+
+            // Status für den nächsten Zug zurücksetzen
+            rollsLeft = 3;
+            heldDice = [false, false, false, false, false];
+            selectedCategory = null;
+            isFirstRoll = true; // Wichtig: Der nächste Spieler muss erst würfeln
+
+            // UI für den nächsten Spieler aktualisieren
+            updateUI();
+             // Würfel zurücksetzen (optional: alte Würfel anzeigen bis zum ersten Wurf des neuen Spielers)
+            // dice = [1, 1, 1, 1, 1]; // Oder die letzten Würfel behalten? Für Pass-and-Play ist Reset besser.
+            // updateDiceUI(); // Zeigt initial leere/Standardwürfel an
+
+            // Hinweis für den nächsten Spieler (optional)
+            // alert(`${players[currentPlayerIndex].name} ist dran!`); // Besser: Visuellen Hinweis geben
+        }
+
+        function endGame() {
+            console.log("Spiel vorbei!");
+            // Endstände anzeigen
+            finalScoresDiv.innerHTML = ''; // Alte Scores löschen
+            // Spieler nach Punktzahl sortieren (absteigend)
+            const sortedPlayers = [...players].sort((a, b) => b.grandTotal - a.grandTotal);
+
+            sortedPlayers.forEach((player, index) => {
+                const scoreLine = document.createElement('p');
+                scoreLine.textContent = `${index + 1}. ${player.name}: ${player.grandTotal} Punkte`;
+                finalScoresDiv.appendChild(scoreLine);
+            });
+
+            // Gewinner bekannt geben
+            if (sortedPlayers.length > 0) {
+                const winner = sortedPlayers[0];
+                const isTie = sortedPlayers.length > 1 && sortedPlayers[1].grandTotal === winner.grandTotal;
+                if (isTie) {
+                     // Prüfen, ob alle die gleiche Punktzahl haben oder nur die ersten paar
+                    const topScore = winner.grandTotal;
+                    const winners = sortedPlayers.filter(p => p.grandTotal === topScore);
+                    winnerAnnouncementEl.textContent = `Unentschieden zwischen ${winners.map(p => p.name).join(' und ')}!`;
+                } else {
+                    winnerAnnouncementEl.textContent = `🎉 ${winner.name} gewinnt! 🎉`;
+                }
+            } else {
+                 winnerAnnouncementEl.textContent = 'Keine Spielerdaten vorhanden.';
+            }
+
+
+            // Modal anzeigen
+            gameOverModal.style.display = 'block';
+        }
+
+        function resetGame() {
+             // Spielerdaten zurücksetzen, aber Namen behalten
+            players.forEach(player => {
+                player.scores = {};
+                Object.keys(categories).forEach(key => { player.scores[key] = undefined; }); // Explizit auf undefined setzen
+                player.upperTotal = 0;
+                player.lowerTotal = 0;
+                player.grandTotal = 0;
+                player.bonus = 0;
+            });
+
+            currentPlayerIndex = 0;
+            currentRound = 1;
+            rollsLeft = 3;
+            dice = [1, 1, 1, 1, 1];
+            heldDice = [false, false, false, false, false];
+            selectedCategory = null;
+            isFirstRoll = true;
+
+            // UI zurücksetzen
+            updateUI();
+            // Sicherstellen, dass der Roll-Button aktiviert ist
+            rollButton.disabled = false;
+            rollButton.textContent = "Würfeln";
+             // Eventuell vorhandene 'selected' oder 'potential' Klassen von Score-Buttons entfernen
+            document.querySelectorAll('.score-button').forEach(btn => {
+                btn.classList.remove('selected', 'potential', 'scored');
+                btn.disabled = true; // Am Anfang deaktiviert, bis gewürfelt wird
+                const scoreSpan = btn.querySelector('span:last-child');
+                if (scoreSpan) scoreSpan.textContent = '-';
+            });
+             // Startwürfel anzeigen
+            updateDiceUI();
+
+            console.log("Neues Spiel gestartet mit Spielern:", players.map(p => p.name));
+        }
+
+        function startNewGameSession() {
+            // Alles zurücksetzen, inklusive Spielerliste
+            players = [];
+            currentPlayerIndex = 0;
+            currentRound = 1;
+            rollsLeft = 3;
+            dice = [1, 1, 1, 1, 1];
+            heldDice = [false, false, false, false, false];
+            selectedCategory = null;
+            isFirstRoll = true;
+
+            // Zurück zum Setup-Screen
+            gameScreen.classList.add('hidden');
+            setupScreen.classList.remove('hidden');
+            gameOverModal.style.display = 'none'; // Modal schließen
+
+            // Spieler Input Felder zurücksetzen (nur eines übrig lassen)
+            playerInputsDiv.innerHTML = '<input type="text" placeholder="Spieler 1 Name" class="player-name-input border p-2 rounded w-full max-w-xs mx-auto block" value="Spieler 1">';
+             document.title = "Ziffar"; // Titel zurücksetzen
+        }
+
+
+        // --- Event Listener ---
+        rollButton.addEventListener('click', rollDice);
+
+        addPlayerBtn.addEventListener('click', () => {
+            const playerCount = playerInputsDiv.children.length + 1;
+            if (playerCount > 6) { // Limit für Spielerzahl (optional)
+                alert("Maximal 6 Spieler erlaubt.");
+                return;
+            }
+            const newInput = document.createElement('input');
+            newInput.type = 'text';
+            newInput.placeholder = `Spieler ${playerCount} Name`;
+            newInput.classList.add('player-name-input', 'border', 'p-2', 'rounded', 'w-full', 'max-w-xs', 'mx-auto', 'block');
+            newInput.value = `Spieler ${playerCount}`;
+            playerInputsDiv.appendChild(newInput);
+        });
+
+        startGameBtn.addEventListener('click', () => {
+            players = []; // Alte Spielerliste löschen
+            const inputs = playerNameInputs();
+            inputs.forEach((input, index) => {
+                const name = input.value.trim() || `Spieler ${index + 1}`;
+                 // Initialisiere Scores für jeden Spieler
+                const playerScores = {};
+                Object.keys(categories).forEach(key => { playerScores[key] = undefined; });
+
+                players.push({
+                    name: name,
+                    scores: playerScores,
+                    upperTotal: 0,
+                    lowerTotal: 0,
+                    grandTotal: 0,
+                    bonus: 0
+                });
+            });
+
+            if (players.length === 0) {
+                alert("Bitte mindestens einen Spieler hinzufügen.");
+                return;
+            }
+
+            setupScreen.classList.add('hidden');
+            gameScreen.classList.remove('hidden');
+            resetGame(); // Startet das Spiel mit den neuen Spielernamen
+        });
+
+        newGameButton.addEventListener('click', () => {
+            if (confirm("Sicher, dass du das aktuelle Spiel beenden und ein komplett neues starten möchtest?")) {
+                startNewGameSession();
+            }
+        });
+
+        // Modal Event Listener
+        modalCloseBtn.addEventListener('click', () => {
+            gameOverModal.style.display = 'none';
+        });
+        modalNewGameBtn.addEventListener('click', () => {
+            gameOverModal.style.display = 'none';
+            startNewGameSession();
+        });
+        // Schließen, wenn außerhalb geklickt wird
+        window.addEventListener('click', (event) => {
+            if (event.target == gameOverModal) {
+                gameOverModal.style.display = 'none';
+            }
+        });
+
+
+        // --- Initialisierung ---
+        // Initial Würfel anzeigen (optional, kann auch leer sein bis zum Setup)
+        // updateDiceUI(); // Zeigt initiale Würfel an, wenn das Spiel direkt startet
+        // Stattdessen: Setup anzeigen
+        gameScreen.classList.add('hidden');
+        setupScreen.classList.remove('hidden');
+
+    </script>
+
+</body>
+</html>
+```json
+{
+  "name": "Ziffar",
+  "short_name": "Ziffar",
+  "description": "Ein webbasiertes Yacht-Spiel.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#4A90E2",
+  "icons": [
+    {
+      "src": "icons/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/maskable_icon.png",
+      "sizes": "196x196",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
+```javascript
+// Einfacher Service Worker für Offline-Fähigkeit (sw.js)
+
+const CACHE_NAME = 'ziffar-cache-v1';
+const urlsToCache = [
+  '/',
+  '/index.html', // Oder wie auch immer deine Haupt-HTML-Datei heißt
+  // Füge hier Pfade zu wichtigen CSS-, JS-Dateien und Icons hinzu
+  // Beispiel: '/style.css', '/script.js', '/icons/icon-192x192.png'
+  'https://cdn.tailwindcss.com', // Tailwind CDN
+   'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap' // Google Fonts
+   // Die Font-Dateien selbst werden evtl. separat von der CSS gecached, je nach Browserverhalten
+];
+
+// Installation: Cache öffnen und Dateien hinzufügen
+self.addEventListener('install', event => {
+  event.waitUntil(
+    caches.open(CACHE_NAME)
+      .then(cache => {
+        console.log('Opened cache');
+        // Wichtige Ressourcen cachen. fetch() wird benötigt, um externe Ressourcen (CDN) zu holen.
+        const cachePromises = urlsToCache.map(urlToCache => {
+            // Für externe URLs muss der Request Mode 'no-cors' sein, wenn keine CORS Header gesetzt sind
+            // Aber für CDNs wie unpkg und Google Fonts sind CORS Header normalerweise vorhanden.
+             let request = new Request(urlToCache, { mode: 'cors' }); // Standard 'cors' sollte funktionieren
+             return fetch(request).then(response => {
+                if (!response.ok) {
+                    // Bei Fehlern (z.B. 404) nicht versuchen zu cachen und Fehler loggen
+                    console.error(`Failed to fetch ${urlToCache} for caching. Status: ${response.status}`);
+                    // Wir werfen keinen Fehler, um den SW nicht am Installieren zu hindern,
+                    // aber die Ressource wird nicht im Cache sein.
+                    return Promise.resolve(); // Weiter mit anderen URLs
+                }
+                // Nur gültige Antworten cachen
+                return cache.put(request, response);
+            }).catch(error => {
+                console.error(`Fetching ${urlToCache} failed:`, error);
+                 // Fehler beim Fetch (z.B. Netzwerkproblem)
+                return Promise.resolve(); // Weiter mit anderen URLs
+            });
+        });
+        return Promise.all(cachePromises);
+      })
+      .then(() => {
+          console.log('All specified resources have been cached (or skipped on error).');
+          // Wichtig: skipWaiting() sorgt dafür, dass der neue SW sofort aktiv wird
+          return self.skipWaiting();
+      })
+  );
+});
+
+// Aktivierung: Alten Cache löschen (optional aber empfohlen)
+self.addEventListener('activate', event => {
+  const cacheWhitelist = [CACHE_NAME];
+  event.waitUntil(
+    caches.keys().then(cacheNames => {
+      return Promise.all(
+        cacheNames.map(cacheName => {
+          if (cacheWhitelist.indexOf(cacheName) === -1) {
+            console.log('Deleting old cache:', cacheName);
+            return caches.delete(cacheName);
+          }
+        })
+      );
+    }).then(() => {
+        // Wichtig: clients.claim() sorgt dafür, dass der SW die Kontrolle über offene Seiten übernimmt
+        return self.clients.claim();
+    })
+  );
+});
+
+// Fetch: Anfragen abfangen und aus Cache bedienen oder Netzwerk anfragen
+self.addEventListener('fetch', event => {
+  event.respondWith(
+    caches.match(event.request)
+      .then(response => {
+        // Cache hit - return response
+        if (response) {
+          return response;
+        }
+        // Nicht im Cache - Netzwerk anfragen
+        return fetch(event.request).then(
+          networkResponse => {
+            // Prüfen, ob wir eine gültige Antwort erhalten haben
+            if(!networkResponse || networkResponse.status !== 200 || networkResponse.type !== 'basic' && networkResponse.type !== 'cors') {
+              return networkResponse;
+            }
+
+            // WICHTIG: Antwort klonen. Eine Antwort ist ein Stream und
+            // kann nur einmal konsumiert werden. Wir brauchen eine Kopie für den Browser
+            // und eine für den Cache.
+            const responseToCache = networkResponse.clone();
+
+            caches.open(CACHE_NAME)
+              .then(cache => {
+                 // Nur GET Requests cachen
+                 if (event.request.method === 'GET') {
+                    cache.put(event.request, responseToCache);
+                 }
+              });
+
+            return networkResponse;
+          }
+        ).catch(error => {
+            // Netzwerkfehler - hier könnte man eine Offline-Fallback-Seite anzeigen
+            console.log('Fetch failed; returning offline page instead.', error);
+            // Optional: return caches.match('/offline.html');
+        });
+      })
+  );
+});
