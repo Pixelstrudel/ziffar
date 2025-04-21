@@ -3,757 +3,1223 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ziffar Spiel</title>
-    <meta name="description" content="Ein webbasiertes Yacht-Spiel.">
-    <meta name="theme-color" content="#4A90E2"/>
+    <title>Ziffar - Das Würfelspiel</title>
+    <meta name="description" content="Ein Yahtzee-ähnliches Würfelspiel für mehrere Spieler im Hot-Seat-Modus mit Spielhistorie.">
+    <script src="https://cdn.tailwindcss.com"></script>
     <link rel="manifest" href="manifest.json">
-    <link rel="apple-touch-icon" href="icons/icon-192x192.png"> <script src="https://cdn.tailwindcss.com"></script>
+    <meta name="theme-color" content="#4F46E5">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+
     <style>
+        /* Basic Styling & Custom Properties */
+        :root {
+            --dice-size: 50px; /* Control dice size */
+            --pip-size: 8px;   /* Control pip size */
+            --dice-bg: #ffffff;
+            --dice-border: #e5e7eb; /* gray-200 */
+            --pip-color: #1f2937; /* gray-800 */
+            --held-bg: #dbeafe; /* blue-100 */
+            --held-border: #93c5fd; /* blue-300 */
+            --button-bg: #4f46e5; /* indigo-600 */
+            --button-hover-bg: #4338ca; /* indigo-700 */
+            --button-text: #ffffff;
+            /* Tooltip styles removed */
+        }
+
         body {
             font-family: 'Inter', sans-serif;
-            overscroll-behavior: none; /* Verhindert Pull-to-Refresh auf Mobilgeräten */
+            background-color: #f3f4f6; /* gray-100 */
+            color: #1f2937; /* gray-800 */
+            overscroll-behavior-y: contain; /* Prevent pull-to-refresh */
         }
-        /* Stile für Würfel-SVGs */
-        .dice-svg {
-            width: 50px;
-            height: 50px;
-            border: 1px solid #ccc;
-            border-radius: 6px;
-            padding: 5px;
-            background-color: white;
+
+        /* Dice Styling */
+        .dice {
+            width: var(--dice-size);
+            height: var(--dice-size);
+            background-color: var(--dice-bg);
+            border: 1px solid var(--dice-border);
+            border-radius: 8px; /* Rounded corners */
+            padding: 4px;
+            display: grid;
+            grid-template-areas:
+                "a . c"
+                "e g f"
+                "d . b";
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
             cursor: pointer;
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
-        }
-        .dice-svg.held {
-            border-color: #4A90E2;
-            box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.5);
-            transform: translateY(-2px);
-        }
-        .dice-dot {
-            fill: #333;
-        }
-        /* Styling für Buttons und Score-Felder */
-        button:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-        .score-button {
-            transition: background-color 0.2s ease;
-        }
-        .score-button:not(:disabled):hover {
-            background-color: #e0f2fe; /* Light blue hover */
-        }
-        .score-button.selected {
-            background-color: #bae6fd; /* Slightly darker blue when selected */
-            font-weight: 500;
-        }
-        .score-button.scored {
-            background-color: #f3f4f6; /* Light gray when scored */
-            color: #6b7280; /* Gray text */
-            cursor: not-allowed;
-        }
-        .score-button.potential {
-             background-color: #fef9c3; /* Light yellow for potential scores */
+            transition: all 0.2s ease-in-out;
+            position: relative; /* For potential animation effects */
         }
 
-        /* Animation für Würfelwurf */
+        .dice.held {
+            background-color: var(--held-bg);
+            border-color: var(--held-border);
+            box-shadow: 0 0 0 3px var(--held-border);
+        }
+
+        .dice:not(.held):hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        }
+
+        .pip {
+            width: var(--pip-size);
+            height: var(--pip-size);
+            background-color: var(--pip-color);
+            border-radius: 50%;
+            align-self: center;
+            justify-self: center;
+            display: none; /* Hide all pips initially */
+        }
+
+        /* Show pips based on dice value attribute */
+        .dice[data-value="1"] .pip.center,
+        .dice[data-value="3"] .pip.center,
+        .dice[data-value="5"] .pip.center { display: block; grid-area: g; }
+
+        .dice[data-value="2"] .pip.top-left,
+        .dice[data-value="3"] .pip.top-left,
+        .dice[data-value="4"] .pip.top-left,
+        .dice[data-value="5"] .pip.top-left,
+        .dice[data-value="6"] .pip.top-left { display: block; grid-area: a; }
+
+        .dice[data-value="2"] .pip.bottom-right,
+        .dice[data-value="3"] .pip.bottom-right,
+        .dice[data-value="4"] .pip.bottom-right,
+        .dice[data-value="5"] .pip.bottom-right,
+        .dice[data-value="6"] .pip.bottom-right { display: block; grid-area: b; }
+
+        .dice[data-value="4"] .pip.top-right,
+        .dice[data-value="5"] .pip.top-right,
+        .dice[data-value="6"] .pip.top-right { display: block; grid-area: c; }
+
+        .dice[data-value="4"] .pip.bottom-left,
+        .dice[data-value="5"] .pip.bottom-left,
+        .dice[data-value="6"] .pip.bottom-left { display: block; grid-area: d; }
+
+        .dice[data-value="6"] .pip.middle-left { display: block; grid-area: e; }
+        .dice[data-value="6"] .pip.middle-right { display: block; grid-area: f; }
+
+        /* Scorecard Styling */
+        .score-cell {
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+            position: relative;
+            vertical-align: middle; /* Align text vertically */
+        }
+        .score-cell.available:hover {
+            background-color: #e0e7ff; /* indigo-100 */
+        }
+        .score-cell.filled {
+            cursor: default;
+            font-weight: bold;
+            color: #374151; /* gray-700 */
+        }
+         .score-cell.potential { /* Style for potential scores > 0 */
+            background-color: #ccfbf1; /* teal-100 */
+            font-style: italic;
+            color: #115e59; /* teal-800 */
+         }
+         /* Style for the category description note */
+         .category-description {
+             display: block;
+             font-size: 0.75rem; /* text-xs */
+             line-height: 1rem;
+             color: #6b7280; /* gray-500 */
+             font-weight: 400; /* normal */
+             margin-top: 0.1rem;
+         }
+
+        /* Tooltip styles removed */
+
+        /* Button Styling */
+        .btn {
+            background-color: var(--button-bg);
+            color: var(--button-text);
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s ease, transform 0.1s ease;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .btn:hover {
+            background-color: var(--button-hover-bg);
+        }
+        .btn:active {
+            transform: scale(0.98);
+        }
+        .btn:disabled {
+            background-color: #9ca3af; /* gray-400 */
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+
+        /* Highlight Current Player */
+        .current-player-column {
+            background-color: #eef2ff; /* indigo-50 */
+            outline: 2px solid var(--button-bg); /* indigo-600 */
+            outline-offset: -1px;
+        }
+        th.current-player-column {
+             background-color: #c7d2fe; /* indigo-200 */
+        }
+
+        /* Game Over Overlay */
+        #gameOverOverlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+        #gameOverOverlay.show {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        /* Game History Styling */
+        #gameHistorySection {
+            max-height: 300px; /* Limit height */
+            overflow-y: auto; /* Add scrollbar if needed */
+            border: 1px solid #e5e7eb; /* gray-200 */
+            border-radius: 8px;
+            padding: 1rem;
+            background-color: #f9fafb; /* gray-50 */
+        }
+        #gameHistorySection h3 {
+            margin-bottom: 0.75rem;
+            font-size: 1.125rem; /* text-lg */
+            font-weight: 600; /* semibold */
+            color: #4b5563; /* gray-600 */
+        }
+         #gameHistorySection ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+         }
+         #gameHistorySection li {
+             border-bottom: 1px solid #e5e7eb; /* gray-200 */
+             padding: 0.75rem 0;
+             font-size: 0.875rem; /* text-sm */
+         }
+          #gameHistorySection li:last-child {
+             border-bottom: none;
+         }
+         #gameHistorySection .history-date {
+             display: block;
+             font-size: 0.75rem; /* text-xs */
+             color: #6b7280; /* gray-500 */
+             margin-bottom: 0.25rem;
+         }
+         #gameHistorySection .history-winner {
+             font-weight: 600; /* semibold */
+             color: #16a34a; /* green-600 */
+         }
+         #historyStats {
+             margin-top: 1rem;
+             padding-top: 1rem;
+             border-top: 1px solid #e5e7eb;
+         }
+
+
+        /* Accessibility */
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border-width: 0;
+        }
+
+        /* Dice Roll Animation */
         @keyframes roll {
             0% { transform: rotate(0deg) scale(1); }
-            25% { transform: rotate(90deg) scale(1.1); }
-            50% { transform: rotate(180deg) scale(1); }
-            75% { transform: rotate(270deg) scale(1.1); }
-            100% { transform: rotate(360deg) scale(1); }
+            25% { transform: rotate(15deg) scale(1.1); }
+            50% { transform: rotate(-10deg) scale(0.9); }
+            75% { transform: rotate(5deg) scale(1.05); }
+            100% { transform: rotate(0deg) scale(1); }
         }
-        .rolling {
-            animation: roll 0.5s ease-out;
-        }
-
-        /* Verhindern, dass Text ausgewählt wird, während auf Würfel geklickt wird */
-        .noselect {
-          -webkit-touch-callout: none; /* iOS Safari */
-            -webkit-user-select: none; /* Safari */
-             -khtml-user-select: none; /* Konqueror HTML */
-               -moz-user-select: none; /* Old versions of Firefox */
-                -ms-user-select: none; /* Internet Explorer/Edge */
-                    user-select: none; /* Non-prefixed version, currently supported by Chrome, Edge, Opera and Firefox */
+        .dice.rolling {
+            animation: roll 0.5s ease-in-out;
         }
 
-        /* Styling für das Modalfenster */
-        .modal {
-            display: none; /* Hidden by default */
-            position: fixed; /* Stay in place */
-            z-index: 1000; /* Sit on top */
-            left: 0;
-            top: 0;
-            width: 100%; /* Full width */
-            height: 100%; /* Full height */
-            overflow: auto; /* Enable scroll if needed */
-            background-color: rgba(0,0,0,0.4); /* Black w/ opacity */
-        }
-        .modal-content {
-            background-color: #fefefe;
-            margin: 15% auto; /* 15% from the top and centered */
-            padding: 20px;
-            border: 1px solid #888;
-            width: 80%; /* Could be more or less, depending on screen size */
-            max-width: 500px;
-            border-radius: 8px;
-            text-align: center;
-        }
-        .modal-close {
-            color: #aaa;
-            float: right;
-            font-size: 28px;
-            font-weight: bold;
-            cursor: pointer;
-        }
-        .modal-close:hover,
-        .modal-close:focus {
-            color: black;
-            text-decoration: none;
-            cursor: pointer;
-        }
     </style>
 </head>
-<body class="bg-gradient-to-br from-blue-50 via-white to-blue-100 min-h-screen p-4 md:p-8 text-gray-800">
+<body class="min-h-screen p-4 md:p-8">
 
-    <div id="game-container" class="max-w-4xl mx-auto bg-white p-4 sm:p-6 md:p-8 rounded-xl shadow-lg">
+    <div class="container mx-auto max-w-4xl bg-white p-6 rounded-lg shadow-lg">
 
-        <h1 class="text-3xl md:text-4xl font-bold text-center text-blue-600 mb-6">Ziffar</h1>
+        <header class="text-center mb-6">
+            <h1 class="text-4xl font-bold text-indigo-600">Ziffar</h1>
+            <p class="text-gray-600">Das spannende Würfelspiel!</p>
+        </header>
 
-        <div id="setup-screen" class="text-center mb-6">
-            <h2 class="text-xl font-semibold mb-4">Spieler hinzufügen</h2>
-            <div id="player-inputs" class="mb-4 space-y-2">
-                <input type="text" placeholder="Spieler 1 Name" class="player-name-input border p-2 rounded w-full max-w-xs mx-auto block" value="Spieler 1">
+        <section id="playerSetup" class="mb-6 p-4 border border-gray-200 rounded-md bg-gray-50">
+            <h2 class="text-xl font-semibold mb-3 text-gray-700">Spieler einrichten</h2>
+            <div class="flex flex-col sm:flex-row gap-4 mb-3">
+                <div class="flex-grow">
+                    <label for="playerCount" class="block text-sm font-medium text-gray-700 mb-1">Anzahl Spieler:</label>
+                    <select id="playerCount" class="w-full p-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500">
+                        <option value="1">1 Spieler</option>
+                        <option value="2" selected>2 Spieler</option>
+                        <option value="3">3 Spieler</option>
+                        <option value="4">4 Spieler</option>
+                    </select>
+                </div>
+                <div id="playerNamesContainer" class="flex-grow grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    </div>
             </div>
-            <button id="add-player-btn" class="bg-green-500 hover:bg-green-600 text-white font-medium py-2 px-4 rounded mr-2 transition duration-150 ease-in-out">
-                Weiteren Spieler hinzufügen
-            </button>
-            <button id="start-game-btn" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded transition duration-150 ease-in-out">
-                Spiel starten
-            </button>
+            <button id="startGameBtn" class="btn w-full sm:w-auto">Spiel starten</button>
+        </section>
+
+        <section id="gameHistorySection" class="mb-6">
+             <div id="historyContent">
+                 <p class="text-center text-gray-500">Noch keine Spiele gespielt.</p>
+             </div>
+        </section>
+
+
+        <main id="gameArea" class="hidden">
+            <section id="gameInfo" class="mb-4 p-4 border border-gray-200 rounded-md bg-indigo-50 text-center">
+                <p class="text-lg font-medium">Aktueller Spieler: <span id="currentPlayerName" class="font-bold text-indigo-700"></span></p>
+                <p class="text-sm text-gray-600">Würfe übrig: <span id="rollsLeft" class="font-semibold">3</span> | Runde: <span id="currentRound" class="font-semibold">1</span> / 13</p>
+            </section>
+
+            <section id="diceArea" class="mb-6 text-center">
+                <h2 class="text-lg font-semibold mb-3 text-gray-700">Würfel <span class="text-sm font-normal text-gray-500">(Klicken zum Halten/Lösen)</span></h2>
+                <div id="diceContainer" class="flex justify-center gap-3 flex-wrap mb-4">
+                    <div class="dice" data-value="1" aria-label="Würfel zeigt 1" role="img">
+                        <span class="pip top-left"></span><span class="pip top-right"></span>
+                        <span class="pip middle-left"></span><span class="pip center"></span><span class="pip middle-right"></span>
+                        <span class="pip bottom-left"></span><span class="pip bottom-right"></span>
+                    </div>
+                     <div class="dice" data-value="2" aria-label="Würfel zeigt 2" role="img">
+                        <span class="pip top-left"></span><span class="pip top-right"></span>
+                        <span class="pip middle-left"></span><span class="pip center"></span><span class="pip middle-right"></span>
+                        <span class="pip bottom-left"></span><span class="pip bottom-right"></span>
+                    </div>
+                    <div class="dice" data-value="3" aria-label="Würfel zeigt 3" role="img">
+                        <span class="pip top-left"></span><span class="pip top-right"></span>
+                        <span class="pip middle-left"></span><span class="pip center"></span><span class="pip middle-right"></span>
+                        <span class="pip bottom-left"></span><span class="pip bottom-right"></span>
+                    </div>
+                     <div class="dice" data-value="4" aria-label="Würfel zeigt 4" role="img">
+                        <span class="pip top-left"></span><span class="pip top-right"></span>
+                        <span class="pip middle-left"></span><span class="pip center"></span><span class="pip middle-right"></span>
+                        <span class="pip bottom-left"></span><span class="pip bottom-right"></span>
+                    </div>
+                     <div class="dice" data-value="5" aria-label="Würfel zeigt 5" role="img">
+                        <span class="pip top-left"></span><span class="pip top-right"></span>
+                        <span class="pip middle-left"></span><span class="pip center"></span><span class="pip middle-right"></span>
+                        <span class="pip bottom-left"></span><span class="pip bottom-right"></span>
+                    </div>
+                </div>
+                <button id="rollBtn" class="btn">Würfeln</button>
+            </section>
+
+            <section id="scorecardArea">
+                <h2 class="text-xl font-semibold mb-3 text-gray-700 text-center">Punktekarte</h2>
+                <div class="overflow-x-auto rounded-md border border-gray-200 shadow-sm">
+                    <table id="scorecard" class="w-full text-sm text-left text-gray-500">
+                        <thead class="text-xs text-gray-700 uppercase bg-gray-100">
+                            <tr>
+                                <th scope="col" class="px-4 py-3 sticky left-0 bg-gray-100 z-10 align-top">Kategorie</th>
+                                </tr>
+                        </thead>
+                        <tbody>
+                            </tbody>
+                         <tfoot class="font-semibold text-gray-700 bg-gray-100">
+                            </tfoot>
+                    </table>
+                </div>
+                 <p class="text-xs text-center mt-2 text-gray-500">Klicke auf eine verfügbare Zelle, um Punkte einzutragen.</p>
+            </section>
+
+             <div id="gameMessage" class="mt-4 text-center font-medium text-red-600 h-6"></div>
+
+        </main>
+
+        <div id="gameOverOverlay" class="hidden">
+            <div class="bg-white p-8 rounded-lg shadow-xl text-center max-w-md w-full mx-4">
+                <h2 class="text-3xl font-bold mb-4 text-indigo-600">Spiel vorbei!</h2>
+                <div id="finalScores" class="mb-6 space-y-2">
+                    </div>
+                <p id="winnerMessage" class="text-xl font-semibold mb-6"></p>
+                <button id="restartGameBtn" class="btn">Neues Spiel</button>
+            </div>
         </div>
 
-        <div id="game-screen" class="hidden">
-            <div class="flex justify-between items-center mb-4 flex-wrap gap-2">
-                <div id="player-info" class="text-lg font-semibold">
-                    Spieler: <span id="current-player-name" class="text-blue-700"></span>
-                </div>
-                <div id="round-info" class="text-sm text-gray-600">
-                    Runde <span id="current-round">1</span> / 13
-                </div>
-                <div id="rolls-left-info" class="text-sm text-gray-600">
-                    Würfe übrig: <span id="rolls-left">3</span>
-                </div>
-            </div>
-
-            <div class="mb-6 text-center noselect">
-                <h2 class="text-lg font-medium mb-3">Würfel (zum Halten anklicken)</h2>
-                <div id="dice-area" class="flex justify-center items-center space-x-2 sm:space-x-4 mb-4">
-                    </div>
-                <button id="roll-button" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-5 rounded-lg shadow text-lg transition duration-150 ease-in-out">
-                    Würfeln
-                </button>
-            </div>
-
-            <div class="mb-6">
-                <h2 class="text-lg font-medium mb-3 text-center">Punktetabelle</h2>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
-                    <div>
-                        <h3 class="text-md font-semibold mb-2 text-blue-700">Obere Sektion</h3>
-                        <div id="upper-section" class="space-y-1">
-                            </div>
-                        <div class="mt-2 pt-2 border-t flex justify-between font-medium">
-                            <span>Bonus (ab 63 Pkt.)</span>
-                            <span id="upper-bonus">0</span>
-                        </div>
-                        <div class="mt-1 flex justify-between font-bold text-blue-800">
-                            <span>Gesamt Oben</span>
-                            <span id="upper-total">0</span>
-                        </div>
-                    </div>
-
-                    <div>
-                        <h3 class="text-md font-semibold mb-2 text-red-700">Untere Sektion</h3>
-                        <div id="lower-section" class="space-y-1">
-                            </div>
-                         <div class="mt-2 pt-2 border-t flex justify-between font-bold text-red-800">
-                            <span>Gesamt Unten</span>
-                            <span id="lower-total">0</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-             <div class="mt-6 pt-4 border-t-2 border-gray-300 text-center">
-                <div class="text-xl font-bold text-gray-800">
-                    Gesamtpunktzahl: <span id="grand-total" class="text-green-600">0</span>
-                </div>
-            </div>
-
-             <div class="mt-8 text-center">
-                 <button id="new-game-button" class="bg-gray-500 hover:bg-gray-600 text-white font-medium py-2 px-4 rounded transition duration-150 ease-in-out">
-                    Neues Spiel
-                </button>
-            </div>
-
-        </div> <div id="game-over-modal" class="modal">
-            <div class="modal-content">
-                <span id="modal-close-btn" class="modal-close">&times;</span>
-                <h2 id="game-over-title" class="text-2xl font-bold mb-4 text-green-600">Spiel vorbei!</h2>
-                <div id="final-scores" class="mb-4 text-left space-y-1">
-                    </div>
-                <p id="winner-announcement" class="font-semibold mb-6"></p>
-                <button id="modal-new-game-btn" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded transition duration-150 ease-in-out">
-                    Neues Spiel starten
-                </button>
-            </div>
-        </div>
-
-    </div> <script>
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js')
-                    .then(registration => {
-                        console.log('ServiceWorker registration successful with scope: ', registration.scope);
-                    })
-                    .catch(err => {
-                        console.log('ServiceWorker registration failed: ', err);
-                    });
-            });
-        }
-    </script>
+    </div>
 
     <script>
-        // --- DOM Elemente ---
-        const setupScreen = document.getElementById('setup-screen');
-        const gameScreen = document.getElementById('game-screen');
-        const playerInputsDiv = document.getElementById('player-inputs');
-        const addPlayerBtn = document.getElementById('add-player-btn');
-        const startGameBtn = document.getElementById('start-game-btn');
-        const playerNameInputs = () => document.querySelectorAll('.player-name-input');
+        // --- CONFIGURATION ---
+        const NUM_DICE = 5;
+        const MAX_ROLLS = 3;
+        const CATEGORIES = [
+            // Upper Section
+            { id: 'ones', name: 'Einsen', description: 'Nur Einsen zählen', section: 'upper' },
+            { id: 'twos', name: 'Zweien', description: 'Nur Zweien zählen', section: 'upper' },
+            { id: 'threes', name: 'Dreien', description: 'Nur Dreien zählen', section: 'upper' },
+            { id: 'fours', name: 'Vieren', description: 'Nur Vieren zählen', section: 'upper' },
+            { id: 'fives', name: 'Fünfen', description: 'Nur Fünfen zählen', section: 'upper' },
+            { id: 'sixes', name: 'Sechsen', description: 'Nur Sechsen zählen', section: 'upper' },
+            // Lower Section
+            { id: 'threeOfAKind', name: 'Dreierpasch', description: 'Mind. 3 gleiche Würfel. Alle Augen zählen.', section: 'lower' },
+            { id: 'fourOfAKind', name: 'Viererpasch', description: 'Mind. 4 gleiche Würfel. Alle Augen zählen.', section: 'lower' },
+            { id: 'fullHouse', name: 'Full House', description: '3 gleiche + 2 gleiche Würfel. 25 Punkte.', section: 'lower' },
+            { id: 'smallStraight', name: 'Kleine Straße', description: 'Folge von 4 Würfeln (z.B. 1-2-3-4). 30 Punkte.', section: 'lower' },
+            { id: 'largeStraight', name: 'Große Straße', description: 'Folge von 5 Würfeln (z.B. 1-2-3-4-5). 40 Punkte.', section: 'lower' },
+            { id: 'ziffar', name: 'Ziffar', description: '5 gleiche Würfel. 50 Punkte.', section: 'lower' },
+            { id: 'chance', name: 'Chance', description: 'Alle Augen zählen.', section: 'lower' },
+        ];
+        const UPPER_BONUS_THRESHOLD = 63;
+        const UPPER_BONUS_POINTS = 35;
+        const ZIFFAR_BONUS_POINTS = 100; // Bonus for additional Ziffars
 
-        const currentPlayerNameEl = document.getElementById('current-player-name');
-        const currentRoundEl = document.getElementById('current-round');
-        const rollsLeftEl = document.getElementById('rolls-left');
-        const diceArea = document.getElementById('dice-area');
-        const rollButton = document.getElementById('roll-button');
-        const upperSectionDiv = document.getElementById('upper-section');
-        const lowerSectionDiv = document.getElementById('lower-section');
-        const upperBonusEl = document.getElementById('upper-bonus');
-        const upperTotalEl = document.getElementById('upper-total');
-        const lowerTotalEl = document.getElementById('lower-total');
-        const grandTotalEl = document.getElementById('grand-total');
-        const newGameButton = document.getElementById('new-game-button');
+        // --- DOM ELEMENTS ---
+        const playerSetupSection = document.getElementById('playerSetup');
+        const playerCountSelect = document.getElementById('playerCount');
+        const playerNamesContainer = document.getElementById('playerNamesContainer');
+        const startGameBtn = document.getElementById('startGameBtn');
+        const gameHistorySection = document.getElementById('gameHistorySection'); // History Section
+        const historyContent = document.getElementById('historyContent'); // Div inside history section
+        const gameArea = document.getElementById('gameArea');
+        const gameInfo = document.getElementById('gameInfo');
+        const currentPlayerNameSpan = document.getElementById('currentPlayerName');
+        const rollsLeftSpan = document.getElementById('rollsLeft');
+        const currentRoundSpan = document.getElementById('currentRound');
+        const diceContainer = document.getElementById('diceContainer');
+        const rollBtn = document.getElementById('rollBtn');
+        const scorecardTable = document.getElementById('scorecard');
+        const scorecardBody = scorecardTable.getElementsByTagName('tbody')[0];
+        const scorecardFoot = scorecardTable.getElementsByTagName('tfoot')[0];
+        const gameMessage = document.getElementById('gameMessage');
+        const gameOverOverlay = document.getElementById('gameOverOverlay');
+        const finalScoresDiv = document.getElementById('finalScores');
+        const winnerMessage = document.getElementById('winnerMessage');
+        const restartGameBtn = document.getElementById('restartGameBtn');
 
-        const gameOverModal = document.getElementById('game-over-modal');
-        const modalCloseBtn = document.getElementById('modal-close-btn');
-        const finalScoresDiv = document.getElementById('final-scores');
-        const winnerAnnouncementEl = document.getElementById('winner-announcement');
-        const modalNewGameBtn = document.getElementById('modal-new-game-btn');
-
-        // --- Spielstatus Variablen ---
-        let players = []; // Array von Spieler-Objekten { name: string, scores: {}, upperTotal: 0, lowerTotal: 0, grandTotal: 0, bonus: 0 }
+        // --- GAME STATE ---
+        let players = [];
         let currentPlayerIndex = 0;
-        let currentRound = 1;
-        let rollsLeft = 3;
-        let dice = [1, 1, 1, 1, 1]; // Aktuelle Würfelwerte
-        let heldDice = [false, false, false, false, false]; // Welche Würfel gehalten werden
-        let selectedCategory = null; // Welche Kategorie zum Eintragen ausgewählt wurde
-        let isFirstRoll = true; // Um zu verhindern, dass Scores vor dem ersten Wurf ausgewählt werden
+        let currentRoll = 0;
+        let round = 1;
+        let diceValues = Array(NUM_DICE).fill(1);
+        let heldDice = Array(NUM_DICE).fill(false);
+        let scores = {}; // { playerId: { categoryId: score | null, ... }, ... }
+        let potentialScores = {}; // { categoryId: score | null }
+        let ziffarBonus = {}; // { playerId: count }
 
-        // --- Spielkategorien ---
-        const categories = {
-            // Obere Sektion
-            'ones': { name: 'Einser', section: 'upper', scored: false, scoreFn: (d) => sumOfNumber(d, 1) },
-            'twos': { name: 'Zweier', section: 'upper', scored: false, scoreFn: (d) => sumOfNumber(d, 2) },
-            'threes': { name: 'Dreier', section: 'upper', scored: false, scoreFn: (d) => sumOfNumber(d, 3) },
-            'fours': { name: 'Vierer', section: 'upper', scored: false, scoreFn: (d) => sumOfNumber(d, 4) },
-            'fives': { name: 'Fünfer', section: 'upper', scored: false, scoreFn: (d) => sumOfNumber(d, 5) },
-            'sixes': { name: 'Sechser', section: 'upper', scored: false, scoreFn: (d) => sumOfNumber(d, 6) },
-            // Untere Sektion
-            'threeOfAKind': { name: 'Dreierpasch', section: 'lower', scored: false, scoreFn: (d) => hasNOfAKind(d, 3) ? sumAll(d) : 0 },
-            'fourOfAKind': { name: 'Viererpasch', section: 'lower', scored: false, scoreFn: (d) => hasNOfAKind(d, 4) ? sumAll(d) : 0 },
-            'fullHouse': { name: 'Full House', section: 'lower', scored: false, scoreFn: (d) => isFullHouse(d) ? 25 : 0 },
-            'smallStraight': { name: 'Kleine Straße', section: 'lower', scored: false, scoreFn: (d) => isStraight(d, 4) ? 30 : 0 },
-            'largeStraight': { name: 'Große Straße', section: 'lower', scored: false, scoreFn: (d) => isStraight(d, 5) ? 40 : 0 },
-            'yacht': { name: 'Yacht', section: 'lower', scored: false, scoreFn: (d) => hasNOfAKind(d, 5) ? 50 : 0 },
-            'chance': { name: 'Chance', section: 'lower', scored: false, scoreFn: (d) => sumAll(d) },
-            // Yacht Bonus wird separat gehandhabt
-        };
+        // --- LOCAL STORAGE KEYS ---
+        const LS_PLAYERS_KEY = 'ziffar_playerNames';
+        const LS_GAME_HISTORY_KEY = 'ziffar_gameHistory'; // Key for game history
 
-        // --- Hilfsfunktionen für die Punkteberechnung ---
-        const countDice = (diceValues) => diceValues.reduce((acc, val) => { acc[val] = (acc[val] || 0) + 1; return acc; }, {});
-        const sumAll = (diceValues) => diceValues.reduce((sum, val) => sum + val, 0);
-        const sumOfNumber = (diceValues, num) => diceValues.filter(val => val === num).reduce((sum, val) => sum + val, 0);
-        const hasNOfAKind = (diceValues, n) => Object.values(countDice(diceValues)).some(count => count >= n);
-        const isFullHouse = (diceValues) => {
-            const counts = Object.values(countDice(diceValues));
-            return counts.length === 2 && counts.includes(3);
-        };
-        const isStraight = (diceValues, length) => {
-            const uniqueSorted = [...new Set(diceValues)].sort((a, b) => a - b);
-            if (uniqueSorted.length < length) return false;
-            for (let i = 0; i <= uniqueSorted.length - length; i++) {
-                let consecutive = true;
-                for (let j = 0; j < length - 1; j++) {
-                    if (uniqueSorted[i + j + 1] !== uniqueSorted[i + j] + 1) {
-                        consecutive = false;
-                        break;
-                    }
-                }
-                if (consecutive) return true;
+        // --- INITIALIZATION ---
+        document.addEventListener('DOMContentLoaded', () => {
+            setupPlayerInputs();
+            loadPlayerNames();
+            displayHistory(); // Load and display history on initial load
+            playerCountSelect.addEventListener('change', setupPlayerInputs);
+            startGameBtn.addEventListener('click', startGame);
+            rollBtn.addEventListener('click', rollDice);
+            diceContainer.addEventListener('click', toggleHoldDice);
+            scorecardBody.addEventListener('click', handleScorecardClick);
+            restartGameBtn.addEventListener('click', restartGame);
+
+            // Initial dice display
+            renderDice();
+
+            // Register Service Worker for PWA
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register('sw.js')
+                    .then(registration => console.log('Service Worker registered with scope:', registration.scope))
+                    .catch(error => console.log('Service Worker registration failed:', error));
             }
-             // Sonderfälle für kleine Straße prüfen (z.B. 1,2,3,4 oder 2,3,4,5 oder 3,4,5,6)
-            if (length === 4) {
-                const straights = [[1,2,3,4], [2,3,4,5], [3,4,5,6]];
-                for (const straight of straights) {
-                    if (straight.every(val => uniqueSorted.includes(val))) return true;
-                }
-            }
-            return false;
-        };
-
-        // --- Würfel SVG Erstellung ---
-        function createDiceSVG(value, index, isHeld) {
-            const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-            svg.setAttribute("viewBox", "0 0 100 100");
-            svg.classList.add("dice-svg", "noselect");
-            if (isHeld) {
-                svg.classList.add("held");
-            }
-            svg.dataset.index = index; // Index speichern für Klick-Handler
-
-            // Punkte hinzufügen
-            const dotCoords = {
-                1: [[50, 50]],
-                2: [[25, 25], [75, 75]],
-                3: [[25, 25], [50, 50], [75, 75]],
-                4: [[25, 25], [75, 25], [25, 75], [75, 75]],
-                5: [[25, 25], [75, 25], [50, 50], [25, 75], [75, 75]],
-                6: [[25, 25], [75, 25], [25, 50], [75, 50], [25, 75], [75, 75]],
-            };
-
-            if (dotCoords[value]) {
-                dotCoords[value].forEach(coords => {
-                    const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-                    circle.setAttribute("cx", coords[0]);
-                    circle.setAttribute("cy", coords[1]);
-                    circle.setAttribute("r", "10"); // Radius des Punktes
-                    circle.classList.add("dice-dot");
-                    svg.appendChild(circle);
-                });
-            }
-
-            // Klick-Handler zum Halten/Lösen
-            svg.addEventListener('click', () => toggleHoldDice(index));
-
-            return svg;
-        }
-
-        // --- UI Update Funktionen ---
-        function updateDiceUI() {
-            diceArea.innerHTML = ''; // Alte Würfel entfernen
-            dice.forEach((value, index) => {
-                const dieElement = createDiceSVG(value, index, heldDice[index]);
-                // Animation hinzufügen, wenn der Würfel nicht gehalten wird und gewürfelt wurde
-                if (!heldDice[index] && !isFirstRoll) {
-                     // Kurze Verzögerung für besseren Effekt
-                    setTimeout(() => dieElement.classList.add('rolling'), index * 50);
-                    // Animation nach Abschluss entfernen
-                    dieElement.addEventListener('animationend', () => {
-                        dieElement.classList.remove('rolling');
-                    });
-                }
-                diceArea.appendChild(dieElement);
-            });
-        }
-
-        function updateScoreboardUI() {
-            const currentPlayer = players[currentPlayerIndex];
-            upperSectionDiv.innerHTML = '';
-            lowerSectionDiv.innerHTML = '';
-
-            // Temporäre Auswahl zurücksetzen
-            const currentSelection = document.querySelector('.score-button.selected');
-             if (currentSelection) {
-                currentSelection.classList.remove('selected');
-                currentSelection.disabled = false; // Wieder aktivierbar machen
-            }
-            selectedCategory = null;
-
-            Object.entries(categories).forEach(([key, category]) => {
-                const button = document.createElement('button');
-                button.classList.add('score-button', 'w-full', 'text-left', 'p-2', 'rounded', 'border', 'border-gray-200', 'flex', 'justify-between', 'items-center');
-                button.dataset.category = key;
-
-                const nameSpan = document.createElement('span');
-                nameSpan.textContent = category.name;
-
-                const scoreSpan = document.createElement('span');
-                scoreSpan.classList.add('font-medium');
-
-                if (currentPlayer.scores[key] !== undefined) {
-                    // Kategorie wurde bereits bewertet
-                    scoreSpan.textContent = currentPlayer.scores[key];
-                    button.disabled = true;
-                    button.classList.add('scored');
-                } else if (!isFirstRoll && rollsLeft < 3) {
-                    // Potenzielle Punktzahl anzeigen, wenn gewürfelt wurde
-                    const potentialScore = category.scoreFn(dice);
-                    scoreSpan.textContent = `(${potentialScore})`; // Potenzielle Punktzahl in Klammern
-                    button.classList.add('potential');
-                    button.addEventListener('click', () => selectScoreCategory(key, potentialScore));
-                } else {
-                    // Noch nicht gewürfelt oder erste Runde
-                    scoreSpan.textContent = '-';
-                    button.disabled = true; // Kann erst nach Wurf ausgewählt werden
-                }
-
-                button.appendChild(nameSpan);
-                button.appendChild(scoreSpan);
-
-                if (category.section === 'upper') {
-                    upperSectionDiv.appendChild(button);
-                } else {
-                    lowerSectionDiv.appendChild(button);
-                }
-            });
-
-            // Gesamtpunkte aktualisieren
-            upperBonusEl.textContent = currentPlayer.bonus;
-            upperTotalEl.textContent = currentPlayer.upperTotal + currentPlayer.bonus;
-            lowerTotalEl.textContent = currentPlayer.lowerTotal;
-            grandTotalEl.textContent = currentPlayer.grandTotal;
-        }
-
-        function updateGameInfoUI() {
-            currentPlayerNameEl.textContent = players[currentPlayerIndex].name;
-            currentRoundEl.textContent = currentRound;
-            rollsLeftEl.textContent = rollsLeft;
-            rollButton.disabled = rollsLeft === 0 || selectedCategory !== null; // Deaktivieren, wenn keine Würfe mehr oder Score ausgewählt
-            rollButton.textContent = rollsLeft === 3 ? "Würfeln" : `Nochmal würfeln (${rollsLeft})`;
-
-            // Titel aktualisieren, um anzuzeigen, wer dran ist
-            document.title = `Ziffar - ${players[currentPlayerIndex].name} ist dran`;
-        }
-
-        function updateUI() {
-            updateDiceUI();
-            updateScoreboardUI();
-            updateGameInfoUI();
-        }
-
-        // --- Spiel Logik Funktionen ---
-        function rollDice() {
-            if (rollsLeft === 0 || selectedCategory !== null) return; // Nicht würfeln, wenn keine Würfe mehr oder Score ausgewählt
-
-            isFirstRoll = false; // Es wurde mindestens einmal gewürfelt
-            dice.forEach((_, index) => {
-                if (!heldDice[index]) {
-                    dice[index] = Math.floor(Math.random() * 6) + 1;
-                }
-            });
-
-            rollsLeft--;
-            // Nach dem Wurf gehaltene Würfel nicht automatisch lösen
-            // heldDice = [false, false, false, false, false]; // Reset hold status after roll if desired
-
-            updateUI(); // UI aktualisieren, um neue Würfel und potenzielle Scores anzuzeigen
-             // Roll Button Text und Status aktualisieren
-            rollButton.textContent = rollsLeft > 0 ? `Nochmal würfeln (${rollsLeft})` : "Wähle eine Kategorie";
-            rollButton.disabled = rollsLeft === 0 || selectedCategory !== null;
-
-            // Wenn keine Würfe mehr übrig sind, muss der Spieler eine Kategorie wählen
-            if (rollsLeft === 0) {
-                 // Optional: Hinweis geben
-                console.log("Keine Würfe mehr übrig. Bitte wähle eine Kategorie zum Eintragen.");
-            }
-        }
-
-        function toggleHoldDice(index) {
-             // Man kann Würfel nur halten/lösen, wenn man schon gewürfelt hat und noch Würfe übrig sind
-            if (isFirstRoll || rollsLeft === 3 || rollsLeft === 0 || selectedCategory !== null) return;
-
-            heldDice[index] = !heldDice[index];
-            const dieElement = diceArea.querySelector(`[data-index="${index}"]`);
-            if (dieElement) {
-                dieElement.classList.toggle('held', heldDice[index]);
-            }
-            // Keine vollständige UI-Aktualisierung hier, nur den Würfel visuell ändern
-        }
-
-        function selectScoreCategory(categoryKey, potentialScore) {
-            if (isFirstRoll || rollsLeft === 3) return; // Kann nicht vor dem ersten Wurf auswählen
-            const currentPlayer = players[currentPlayerIndex];
-            if (currentPlayer.scores[categoryKey] !== undefined) return; // Bereits bewertet
-
-            // Alte Auswahl visuell zurücksetzen, falls vorhanden
-            const currentSelection = document.querySelector('.score-button.selected');
-            if (currentSelection) {
-                currentSelection.classList.remove('selected');
-                currentSelection.disabled = false; // Wieder aktivierbar machen
-                 // Potenzielle Klasse wieder hinzufügen, wenn nötig
-                if (!currentPlayer.scores[currentSelection.dataset.category]) {
-                    currentSelection.classList.add('potential');
-                }
-            }
-
-             // Neue Auswahl markieren
-            selectedCategory = categoryKey;
-            const selectedButton = document.querySelector(`button[data-category="${categoryKey}"]`);
-            if (selectedButton) {
-                 selectedButton.classList.remove('potential'); // Potenzial-Highlight entfernen
-                selectedButton.classList.add('selected'); // Auswahl-Highlight setzen
-                selectedButton.disabled = true; // Verhindern, dass derselbe Knopf nochmal geklickt wird, bevor bestätigt wird
-            }
-
-            // Roll-Button deaktivieren, da eine Kategorie ausgewählt wurde
-            rollButton.disabled = true;
-
-            // Nächsten Schritt auslösen: Punktzahl bestätigen und zum nächsten Spieler wechseln
-            confirmScore(categoryKey, potentialScore);
-        }
-
-        function confirmScore(categoryKey, score) {
-            const currentPlayer = players[currentPlayerIndex];
-            const category = categories[categoryKey];
-
-            // Punktzahl eintragen
-            currentPlayer.scores[categoryKey] = score;
-
-            // Gesamtpunkte neu berechnen
-            calculateTotals(currentPlayer);
-
-            // Nächster Zug vorbereiten
-            nextTurn();
-        }
-
-        function calculateTotals(player) {
-            player.upperTotal = 0;
-            player.lowerTotal = 0;
-
-            Object.keys(categories).forEach(key => {
-                if (player.scores[key] !== undefined) {
-                    if (categories[key].section === 'upper') {
-                        player.upperTotal += player.scores[key];
-                    } else if (categories[key].section === 'lower') {
-                        player.lowerTotal += player.scores[key];
-                    }
-                }
-            });
-
-            // Bonus prüfen
-            player.bonus = player.upperTotal >= 63 ? 35 : 0;
-
-            // Gesamtpunktzahl
-            player.grandTotal = player.upperTotal + player.bonus + player.lowerTotal;
-        }
-
-        function nextTurn() {
-            // Nächster Spieler
-            currentPlayerIndex = (currentPlayerIndex + 1) % players.length;
-
-            // Wenn der erste Spieler wieder dran ist, nächste Runde
-            if (currentPlayerIndex === 0) {
-                currentRound++;
-            }
-
-            // Spielende prüfen
-            if (currentRound > 13) {
-                endGame();
-                return;
-            }
-
-            // Status für den nächsten Zug zurücksetzen
-            rollsLeft = 3;
-            heldDice = [false, false, false, false, false];
-            selectedCategory = null;
-            isFirstRoll = true; // Wichtig: Der nächste Spieler muss erst würfeln
-
-            // UI für den nächsten Spieler aktualisieren
-            updateUI();
-             // Würfel zurücksetzen (optional: alte Würfel anzeigen bis zum ersten Wurf des neuen Spielers)
-            // dice = [1, 1, 1, 1, 1]; // Oder die letzten Würfel behalten? Für Pass-and-Play ist Reset besser.
-            // updateDiceUI(); // Zeigt initial leere/Standardwürfel an
-
-            // Hinweis für den nächsten Spieler (optional)
-            // alert(`${players[currentPlayerIndex].name} ist dran!`); // Besser: Visuellen Hinweis geben
-        }
-
-        function endGame() {
-            console.log("Spiel vorbei!");
-            // Endstände anzeigen
-            finalScoresDiv.innerHTML = ''; // Alte Scores löschen
-            // Spieler nach Punktzahl sortieren (absteigend)
-            const sortedPlayers = [...players].sort((a, b) => b.grandTotal - a.grandTotal);
-
-            sortedPlayers.forEach((player, index) => {
-                const scoreLine = document.createElement('p');
-                scoreLine.textContent = `${index + 1}. ${player.name}: ${player.grandTotal} Punkte`;
-                finalScoresDiv.appendChild(scoreLine);
-            });
-
-            // Gewinner bekannt geben
-            if (sortedPlayers.length > 0) {
-                const winner = sortedPlayers[0];
-                const isTie = sortedPlayers.length > 1 && sortedPlayers[1].grandTotal === winner.grandTotal;
-                if (isTie) {
-                     // Prüfen, ob alle die gleiche Punktzahl haben oder nur die ersten paar
-                    const topScore = winner.grandTotal;
-                    const winners = sortedPlayers.filter(p => p.grandTotal === topScore);
-                    winnerAnnouncementEl.textContent = `Unentschieden zwischen ${winners.map(p => p.name).join(' und ')}!`;
-                } else {
-                    winnerAnnouncementEl.textContent = `🎉 ${winner.name} gewinnt! 🎉`;
-                }
-            } else {
-                 winnerAnnouncementEl.textContent = 'Keine Spielerdaten vorhanden.';
-            }
-
-
-            // Modal anzeigen
-            gameOverModal.style.display = 'block';
-        }
-
-        function resetGame() {
-             // Spielerdaten zurücksetzen, aber Namen behalten
-            players.forEach(player => {
-                player.scores = {};
-                Object.keys(categories).forEach(key => { player.scores[key] = undefined; }); // Explizit auf undefined setzen
-                player.upperTotal = 0;
-                player.lowerTotal = 0;
-                player.grandTotal = 0;
-                player.bonus = 0;
-            });
-
-            currentPlayerIndex = 0;
-            currentRound = 1;
-            rollsLeft = 3;
-            dice = [1, 1, 1, 1, 1];
-            heldDice = [false, false, false, false, false];
-            selectedCategory = null;
-            isFirstRoll = true;
-
-            // UI zurücksetzen
-            updateUI();
-            // Sicherstellen, dass der Roll-Button aktiviert ist
-            rollButton.disabled = false;
-            rollButton.textContent = "Würfeln";
-             // Eventuell vorhandene 'selected' oder 'potential' Klassen von Score-Buttons entfernen
-            document.querySelectorAll('.score-button').forEach(btn => {
-                btn.classList.remove('selected', 'potential', 'scored');
-                btn.disabled = true; // Am Anfang deaktiviert, bis gewürfelt wird
-                const scoreSpan = btn.querySelector('span:last-child');
-                if (scoreSpan) scoreSpan.textContent = '-';
-            });
-             // Startwürfel anzeigen
-            updateDiceUI();
-
-            console.log("Neues Spiel gestartet mit Spielern:", players.map(p => p.name));
-        }
-
-        function startNewGameSession() {
-            // Alles zurücksetzen, inklusive Spielerliste
-            players = [];
-            currentPlayerIndex = 0;
-            currentRound = 1;
-            rollsLeft = 3;
-            dice = [1, 1, 1, 1, 1];
-            heldDice = [false, false, false, false, false];
-            selectedCategory = null;
-            isFirstRoll = true;
-
-            // Zurück zum Setup-Screen
-            gameScreen.classList.add('hidden');
-            setupScreen.classList.remove('hidden');
-            gameOverModal.style.display = 'none'; // Modal schließen
-
-            // Spieler Input Felder zurücksetzen (nur eines übrig lassen)
-            playerInputsDiv.innerHTML = '<input type="text" placeholder="Spieler 1 Name" class="player-name-input border p-2 rounded w-full max-w-xs mx-auto block" value="Spieler 1">';
-             document.title = "Ziffar"; // Titel zurücksetzen
-        }
-
-
-        // --- Event Listener ---
-        rollButton.addEventListener('click', rollDice);
-
-        addPlayerBtn.addEventListener('click', () => {
-            const playerCount = playerInputsDiv.children.length + 1;
-            if (playerCount > 6) { // Limit für Spielerzahl (optional)
-                alert("Maximal 6 Spieler erlaubt.");
-                return;
-            }
-            const newInput = document.createElement('input');
-            newInput.type = 'text';
-            newInput.placeholder = `Spieler ${playerCount} Name`;
-            newInput.classList.add('player-name-input', 'border', 'p-2', 'rounded', 'w-full', 'max-w-xs', 'mx-auto', 'block');
-            newInput.value = `Spieler ${playerCount}`;
-            playerInputsDiv.appendChild(newInput);
         });
 
-        startGameBtn.addEventListener('click', () => {
-            players = []; // Alte Spielerliste löschen
-            const inputs = playerNameInputs();
-            inputs.forEach((input, index) => {
-                const name = input.value.trim() || `Spieler ${index + 1}`;
-                 // Initialisiere Scores für jeden Spieler
-                const playerScores = {};
-                Object.keys(categories).forEach(key => { playerScores[key] = undefined; });
+        // --- PLAYER SETUP ---
+        function setupPlayerInputs() {
+            const count = parseInt(playerCountSelect.value);
+            playerNamesContainer.innerHTML = ''; // Clear previous inputs
+            const savedNames = getSavedPlayerNames();
 
-                players.push({
-                    name: name,
-                    scores: playerScores,
-                    upperTotal: 0,
-                    lowerTotal: 0,
-                    grandTotal: 0,
-                    bonus: 0
+            for (let i = 0; i < count; i++) {
+                const inputId = `playerName${i + 1}`;
+                const savedName = savedNames[i] || `Spieler ${i + 1}`;
+                const div = document.createElement('div');
+                div.innerHTML = `
+                    <label for="${inputId}" class="block text-sm font-medium text-gray-700 mb-1">Spieler ${i + 1}:</label>
+                    <input type="text" id="${inputId}" value="${savedName}" class="w-full p-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500" placeholder="Name eingeben">
+                `;
+                playerNamesContainer.appendChild(div);
+            }
+        }
+
+        function loadPlayerNames() {
+            const savedNames = getSavedPlayerNames();
+            if (savedNames.length > 0) {
+                playerCountSelect.value = savedNames.length;
+                setupPlayerInputs(); // Re-populate with saved names
+            } else {
+                setupPlayerInputs(); // Populate with defaults
+            }
+        }
+
+        function savePlayerNames(names) {
+            try {
+                localStorage.setItem(LS_PLAYERS_KEY, JSON.stringify(names));
+            } catch (e) {
+                console.error("Speichern der Spielernamen fehlgeschlagen:", e);
+                displayMessage("Speichern der Namen nicht möglich (LocalStorage voll?).");
+            }
+        }
+
+        function getSavedPlayerNames() {
+            try {
+                const names = localStorage.getItem(LS_PLAYERS_KEY);
+                return names ? JSON.parse(names) : [];
+            } catch (e) {
+                console.error("Laden der Spielernamen fehlgeschlagen:", e);
+                return [];
+            }
+        }
+
+        // --- GAME HISTORY ---
+        function getGameHistory() {
+            try {
+                const history = localStorage.getItem(LS_GAME_HISTORY_KEY);
+                return history ? JSON.parse(history) : [];
+            } catch (e) {
+                console.error("Laden der Spielhistorie fehlgeschlagen:", e);
+                return [];
+            }
+        }
+
+        function saveGameHistory(history) {
+            try {
+                localStorage.setItem(LS_GAME_HISTORY_KEY, JSON.stringify(history));
+            } catch (e) {
+                console.error("Speichern der Spielhistorie fehlgeschlagen:", e);
+                displayMessage("Speichern der Historie nicht möglich (LocalStorage voll?).");
+            }
+        }
+
+        function addGameToHistory(gameResult) {
+            const history = getGameHistory();
+            history.unshift(gameResult); // Add new game to the beginning
+            // Optional: Limit history size
+            // if (history.length > 20) {
+            //     history.pop(); // Remove the oldest game
+            // }
+            saveGameHistory(history);
+        }
+
+        function displayHistory() {
+            const history = getGameHistory();
+            historyContent.innerHTML = ''; // Clear previous content
+
+            if (history.length === 0) {
+                historyContent.innerHTML = '<p class="text-center text-gray-500">Noch keine Spiele gespielt.</p>';
+                gameHistorySection.classList.add('hidden'); // Hide section if empty
+                return;
+            }
+
+            gameHistorySection.classList.remove('hidden'); // Show section if not empty
+
+            const historyList = document.createElement('ul');
+            const winCounts = {}; // { playerName: count }
+
+            history.forEach(game => {
+                const li = document.createElement('li');
+                const dateString = new Date(game.date).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' });
+
+                let playersHtml = game.players.map(p => `${p.name}: ${p.score}`).join(' | ');
+                let winnerHtml = '';
+                if (game.winnerNames.length === 1) {
+                    winnerHtml = `<span class="history-winner">Gewinner: ${game.winnerNames[0]}</span>`;
+                    // Count wins
+                    winCounts[game.winnerNames[0]] = (winCounts[game.winnerNames[0]] || 0) + 1;
+                } else if (game.winnerNames.length > 1) {
+                    winnerHtml = `<span class="history-winner">Unentschieden: ${game.winnerNames.join(' & ')}</span>`;
+                     // Count ties for involved players? Optional. For now, only count single wins.
+                }
+
+
+                li.innerHTML = `
+                    <span class="history-date">${dateString}</span>
+                    <span>${playersHtml}</span><br>
+                    ${winnerHtml}
+                `;
+                historyList.appendChild(li);
+            });
+
+            // Calculate and display stats
+            const statsDiv = document.createElement('div');
+            statsDiv.id = 'historyStats';
+            statsDiv.innerHTML = '<h3>Statistik (Siege)</h3>';
+            const statsList = document.createElement('ul');
+            const sortedWins = Object.entries(winCounts).sort(([,a],[,b]) => b-a); // Sort by win count descending
+
+            if (sortedWins.length > 0) {
+                 sortedWins.forEach(([name, count]) => {
+                    const statLi = document.createElement('li');
+                    statLi.textContent = `${name}: ${count} Sieg${count > 1 ? 'e' : ''}`;
+                    statsList.appendChild(statLi);
                 });
+            } else {
+                 statsList.innerHTML = '<li class="text-gray-500">Noch keine eindeutigen Siege.</li>';
+            }
+
+            statsDiv.appendChild(statsList);
+
+            historyContent.appendChild(document.createElement('h3')).textContent = 'Letzte Spiele';
+            historyContent.appendChild(historyList);
+            historyContent.appendChild(statsDiv);
+        }
+
+
+        // --- GAME LOGIC ---
+        function startGame() {
+            players = [];
+            const nameInputs = playerNamesContainer.querySelectorAll('input');
+            const playerNames = [];
+            nameInputs.forEach((input, index) => {
+                const name = input.value.trim() || `Spieler ${index + 1}`;
+                players.push({ id: `p${index}`, name: name });
+                playerNames.push(name); // For saving
             });
 
             if (players.length === 0) {
-                alert("Bitte mindestens einen Spieler hinzufügen.");
+                displayMessage("Bitte mindestens einen Spieler hinzufügen.");
                 return;
             }
 
-            setupScreen.classList.add('hidden');
-            gameScreen.classList.remove('hidden');
-            resetGame(); // Startet das Spiel mit den neuen Spielernamen
-        });
+            savePlayerNames(playerNames); // Save names for next time
 
-        newGameButton.addEventListener('click', () => {
-            if (confirm("Sicher, dass du das aktuelle Spiel beenden und ein komplett neues starten möchtest?")) {
-                startNewGameSession();
+            // Initialize game state
+            currentPlayerIndex = 0;
+            currentRoll = 0;
+            round = 1;
+            diceValues = Array(NUM_DICE).fill(1);
+            heldDice = Array(NUM_DICE).fill(false);
+            scores = {};
+            ziffarBonus = {};
+            players.forEach(p => {
+                scores[p.id] = {};
+                CATEGORIES.forEach(cat => scores[p.id][cat.id] = null);
+                ziffarBonus[p.id] = 0;
+            });
+            potentialScores = {};
+
+            // Update UI
+            playerSetupSection.classList.add('hidden');
+            gameHistorySection.classList.add('hidden'); // Hide history during game
+            gameArea.classList.remove('hidden');
+            gameOverOverlay.classList.remove('show');
+            gameOverOverlay.classList.add('hidden');
+
+            setupScorecard();
+            updateGameInfo();
+            resetDiceAppearance();
+            renderDice();
+            rollBtn.disabled = false;
+            rollBtn.textContent = "Würfeln";
+            displayMessage(""); // Clear any previous messages
+        }
+
+        function setupScorecard() {
+            const thead = scorecardTable.getElementsByTagName('thead')[0].rows[0];
+            const tbody = scorecardBody;
+            const tfoot = scorecardFoot;
+
+            // Clear existing headers/rows
+            while (thead.cells.length > 1) thead.deleteCell(1);
+            tbody.innerHTML = '';
+            tfoot.innerHTML = '';
+
+            // Add player headers
+            players.forEach((player, index) => {
+                const th = document.createElement('th');
+                th.scope = 'col';
+                th.className = 'px-4 py-3 text-center player-header align-top'; // Align top
+                th.textContent = player.name;
+                th.dataset.playerId = player.id;
+                thead.appendChild(th);
+            });
+
+            // Add score rows
+            let currentSection = '';
+            CATEGORIES.forEach(cat => {
+                // Add section separators
+                if (cat.section !== currentSection) {
+                    currentSection = cat.section;
+                    const sepRow = tbody.insertRow();
+                    sepRow.className = 'bg-gray-50 font-semibold';
+                    const sepCell = sepRow.insertCell();
+                    sepCell.colSpan = players.length + 1;
+                    sepCell.className = 'px-4 py-2 text-indigo-700';
+                    sepCell.textContent = currentSection === 'upper' ? 'Oberer Teil' : 'Unterer Teil';
+                }
+
+                const row = tbody.insertRow();
+                row.dataset.categoryId = cat.id;
+                const nameCell = row.insertCell();
+                // **Tooltip Change:** Use description span
+                nameCell.className = 'px-4 py-2 font-medium text-gray-900 whitespace-nowrap sticky left-0 bg-white z-10 align-top';
+                nameCell.innerHTML = `
+                    ${cat.name}
+                    <span class="category-description">${cat.description}</span>
+                `;
+
+                players.forEach(player => {
+                    const scoreCell = row.insertCell();
+                    scoreCell.className = 'px-4 py-2 text-center score-cell available align-middle'; // Align middle
+                    scoreCell.dataset.playerId = player.id;
+                    scoreCell.dataset.categoryId = cat.id;
+                    scoreCell.textContent = '-'; // Placeholder
+                    scoreCell.setAttribute('aria-label', `Punkte für ${cat.name} für ${player.name} eintragen`);
+                    scoreCell.setAttribute('role', 'button');
+                    scoreCell.tabIndex = 0; // Make it focusable
+                });
+            });
+
+             // Add Upper Bonus Row
+            const bonusRow = tbody.insertRow();
+            bonusRow.id = 'upperBonusRow';
+            const bonusNameCell = bonusRow.insertCell();
+            // **Tooltip Change:** Use description span
+            bonusNameCell.className = 'px-4 py-2 font-medium text-gray-900 whitespace-nowrap sticky left-0 bg-white z-10 align-top';
+            bonusNameCell.innerHTML = `
+                Bonus <span class="text-xs font-normal">(ab ${UPPER_BONUS_THRESHOLD} P.)</span>
+                <span class="category-description">Bei ${UPPER_BONUS_THRESHOLD}+ P. oben: ${UPPER_BONUS_POINTS} extra.</span>
+            `;
+            players.forEach(player => {
+                const bonusCell = bonusRow.insertCell();
+                bonusCell.className = 'px-4 py-2 text-center font-semibold align-middle';
+                bonusCell.dataset.playerId = player.id;
+                bonusCell.id = `upperBonus-${player.id}`;
+                bonusCell.textContent = '0';
+            });
+
+            // Add Upper Total Row
+            const upperTotalRow = tbody.insertRow();
+            upperTotalRow.id = 'upperTotalRow';
+            const upperTotalNameCell = upperTotalRow.insertCell();
+            upperTotalNameCell.className = 'px-4 py-2 font-semibold text-gray-900 whitespace-nowrap sticky left-0 bg-white z-10 align-middle';
+            upperTotalNameCell.textContent = 'Summe Oben';
+            players.forEach(player => {
+                const upperTotalCell = upperTotalRow.insertCell();
+                upperTotalCell.className = 'px-4 py-2 text-center font-semibold align-middle';
+                upperTotalCell.dataset.playerId = player.id;
+                upperTotalCell.id = `upperTotal-${player.id}`;
+                upperTotalCell.textContent = '0';
+            });
+
+            // Add Ziffar Bonus Row
+             const ziffarBonusRow = tbody.insertRow();
+             ziffarBonusRow.id = 'ziffarBonusRow';
+             const ziffarBonusNameCell = ziffarBonusRow.insertCell();
+             // **Tooltip Change:** Use description span
+             ziffarBonusNameCell.className = 'px-4 py-2 font-medium text-gray-900 whitespace-nowrap sticky left-0 bg-white z-10 align-top';
+             ziffarBonusNameCell.innerHTML = `
+                Ziffar Bonus
+                <span class="category-description">Pro weiterem Ziffar: ${ZIFFAR_BONUS_POINTS} extra.</span>
+             `;
+             players.forEach(player => {
+                 const cell = ziffarBonusRow.insertCell();
+                 cell.className = 'px-4 py-2 text-center font-semibold align-middle';
+                 cell.dataset.playerId = player.id;
+                 cell.id = `ziffarBonus-${player.id}`;
+                 cell.textContent = '0';
+             });
+
+
+            // Add Footer Total Row
+            const totalRow = tfoot.insertRow();
+            totalRow.className = 'bg-indigo-100';
+            const totalNameCell = totalRow.insertCell();
+            totalNameCell.className = 'px-4 py-3 font-bold text-indigo-800 sticky left-0 bg-indigo-100 z-10 align-middle';
+            totalNameCell.textContent = 'Gesamtpunktzahl';
+            players.forEach(player => {
+                const totalCell = totalRow.insertCell();
+                totalCell.className = 'px-4 py-3 text-center font-bold text-indigo-800 align-middle';
+                totalCell.dataset.playerId = player.id;
+                totalCell.id = `totalScore-${player.id}`;
+                totalCell.textContent = '0';
+            });
+        }
+
+        function updateGameInfo() {
+            const currentPlayer = players[currentPlayerIndex];
+            currentPlayerNameSpan.textContent = currentPlayer.name;
+            rollsLeftSpan.textContent = MAX_ROLLS - currentRoll;
+            currentRoundSpan.textContent = round;
+
+            // Highlight current player's column
+            document.querySelectorAll('.player-header, .score-cell, tfoot td, #upperBonusRow td, #upperTotalRow td, #ziffarBonusRow td').forEach(cell => {
+                 cell.classList.remove('current-player-column');
+                 if(cell.dataset.playerId === currentPlayer.id) {
+                     cell.classList.add('current-player-column');
+                 }
+            });
+             // Highlight current player's header specifically
+            document.querySelectorAll('thead th.player-header').forEach(th => {
+                 th.classList.remove('current-player-column'); // Remove specific header highlight class if needed elsewhere
+                 if(th.dataset.playerId === currentPlayer.id) {
+                    th.classList.add('current-player-column'); // Add specific header highlight class
+                 }
+            });
+
+
+        }
+
+        function rollDice() {
+            if (currentRoll >= MAX_ROLLS) return;
+
+            displayMessage(""); // Clear previous messages
+            currentRoll++;
+            const diceElements = diceContainer.querySelectorAll('.dice');
+
+            diceValues.forEach((_, i) => {
+                if (!heldDice[i]) {
+                    diceValues[i] = Math.floor(Math.random() * 6) + 1;
+                    // Add rolling animation class
+                    const dieElement = diceElements[i];
+                    dieElement.classList.add('rolling');
+                    // Remove the class after animation ends
+                     setTimeout(() => {
+                        dieElement.classList.remove('rolling');
+                    }, 500); // Match animation duration
+                }
+            });
+
+            renderDice();
+            updateGameInfo();
+            calculatePotentialScores();
+            renderPotentialScores();
+
+
+            if (currentRoll === MAX_ROLLS) {
+                rollBtn.disabled = true;
+                rollBtn.textContent = "Wähle Kategorie";
+                displayMessage("Letzter Wurf! Wähle eine Kategorie.", "info");
+            } else {
+                 rollBtn.textContent = `Würfeln (${MAX_ROLLS - currentRoll} übrig)`;
             }
-        });
+        }
 
-        // Modal Event Listener
-        modalCloseBtn.addEventListener('click', () => {
-            gameOverModal.style.display = 'none';
-        });
-        modalNewGameBtn.addEventListener('click', () => {
-            gameOverModal.style.display = 'none';
-            startNewGameSession();
-        });
-        // Schließen, wenn außerhalb geklickt wird
-        window.addEventListener('click', (event) => {
-            if (event.target == gameOverModal) {
-                gameOverModal.style.display = 'none';
+        function renderDice() {
+            diceContainer.innerHTML = ''; // Clear existing dice
+            diceValues.forEach((value, index) => {
+                const die = document.createElement('div');
+                die.className = 'dice';
+                die.dataset.index = index;
+                die.dataset.value = value;
+                die.setAttribute('aria-label', `Würfel ${index + 1} zeigt ${value}${heldDice[index] ? ', gehalten' : ''}`);
+                die.setAttribute('role', 'button'); // Make it interactive
+                die.tabIndex = 0; // Make focusable
+
+
+                if (heldDice[index]) {
+                    die.classList.add('held');
+                }
+
+                // Add pips
+                die.innerHTML = `
+                    <span class="pip top-left"></span><span class="pip top-right"></span>
+                    <span class="pip middle-left"></span><span class="pip center"></span><span class="pip middle-right"></span>
+                    <span class="pip bottom-left"></span><span class="pip bottom-right"></span>
+                `;
+                diceContainer.appendChild(die);
+            });
+        }
+
+        // Resets dice to initial state visually before first roll
+        function resetDiceAppearance() {
+             diceContainer.innerHTML = '';
+             for (let i = 0; i < NUM_DICE; i++) {
+                 const die = document.createElement('div');
+                 die.className = 'dice';
+                 die.dataset.index = i;
+                 die.dataset.value = 1; // Start with 1 visually
+                 die.setAttribute('aria-label', `Würfel ${i + 1} zeigt 1`);
+                 die.setAttribute('role', 'button');
+                 die.tabIndex = 0;
+                 die.innerHTML = `
+                    <span class="pip top-left"></span><span class="pip top-right"></span>
+                    <span class="pip middle-left"></span><span class="pip center"></span><span class="pip middle-right"></span>
+                    <span class="pip bottom-left"></span><span class="pip bottom-right"></span>
+                 `;
+                 diceContainer.appendChild(die);
+             }
+        }
+
+
+        function toggleHoldDice(event) {
+            const die = event.target.closest('.dice');
+            if (!die || currentRoll === 0) return; // Can't hold before first roll
+
+            const index = parseInt(die.dataset.index);
+            heldDice[index] = !heldDice[index];
+            die.classList.toggle('held');
+            // Update aria-label
+             const value = die.dataset.value;
+             die.setAttribute('aria-label', `Würfel ${index + 1} zeigt ${value}${heldDice[index] ? ', gehalten' : ''}`);
+
+        }
+
+        function handleScorecardClick(event) {
+            const cell = event.target.closest('.score-cell');
+            if (!cell || currentRoll === 0) {
+                 if(currentRoll === 0) displayMessage("Du musst zuerst würfeln!");
+                 return; // Ignore clicks if not rolled yet or not on a cell
             }
-        });
+
+            const playerId = cell.dataset.playerId;
+            const categoryId = cell.dataset.categoryId;
+            const currentPlayer = players[currentPlayerIndex];
+
+            if (playerId !== currentPlayer.id) {
+                displayMessage("Warte, bis du dran bist!");
+                return;
+            }
+
+            if (scores[playerId][categoryId] !== null) {
+                displayMessage("Diese Kategorie wurde bereits gewählt.");
+                return;
+            }
+
+            // Score the category using the potential score if available, otherwise calculate
+            const score = potentialScores[categoryId] !== undefined ? potentialScores[categoryId] : calculateScoreForCategory(categoryId, diceValues);
+            scores[playerId][categoryId] = score;
+
+             // Ziffar Bonus Logic
+             const isZiffar = checkZiffar(diceValues);
+             if (categoryId === 'ziffar' && isZiffar) {
+                 ziffarBonus[playerId]++;
+             } else if (isZiffar && scores[playerId]['ziffar'] !== null && scores[playerId]['ziffar'] > 0) {
+                 // If it's a Ziffar, and the Ziffar category is already filled with a Ziffar score
+                 ziffarBonus[playerId]++;
+                 // Check if the corresponding upper category is available as a Joker rule
+                 const upperCategoryForZiffar = ['ones', 'twos', 'threes', 'fours', 'fives', 'sixes'][diceValues[0] - 1];
+                 if (scores[playerId][upperCategoryForZiffar] === null) {
+                     // Optional: Joker rule implementation could go here
+                 }
+                 displayMessage(`Zusätzlicher Ziffar! ${ZIFFAR_BONUS_POINTS} Bonuspunkte!`, "info");
+             }
 
 
-        // --- Initialisierung ---
-        // Initial Würfel anzeigen (optional, kann auch leer sein bis zum Setup)
-        // updateDiceUI(); // Zeigt initiale Würfel an, wenn das Spiel direkt startet
-        // Stattdessen: Setup anzeigen
-        gameScreen.classList.add('hidden');
-        setupScreen.classList.remove('hidden');
+            updateScorecard();
+            clearPotentialScores(); // Clear potentials before moving turn
+            nextTurn();
+        }
+
+        function updateScorecard() {
+            players.forEach(player => {
+                let upperScore = 0;
+                let lowerScore = 0;
+                let hasBonus = false;
+
+                // Update individual cells and calculate upper score
+                CATEGORIES.forEach(cat => {
+                    const score = scores[player.id][cat.id];
+                    const cell = scorecardBody.querySelector(`.score-cell[data-player-id="${player.id}"][data-category-id="${cat.id}"]`);
+                    if (cell) {
+                        if (score !== null) {
+                            cell.textContent = score;
+                            cell.classList.remove('available', 'potential');
+                            cell.classList.add('filled');
+                            cell.removeAttribute('role'); // No longer interactive
+                            cell.removeAttribute('tabindex');
+                            cell.setAttribute('aria-label', `${CATEGORIES.find(c=>c.id===cat.id).name} für ${player.name}: ${score} Punkte`);
+
+                            if (cat.section === 'upper') {
+                                upperScore += score;
+                            } else {
+                                lowerScore += score;
+                            }
+                        } else {
+                             // Ensure cells for the current player that are not filled or potential reset correctly
+                             if (player.id === players[currentPlayerIndex].id && !cell.classList.contains('potential')) {
+                                cell.textContent = '-';
+                             } else if (player.id !== players[currentPlayerIndex].id) {
+                                 cell.textContent = '-'; // Reset for other players too
+                             }
+                             // Keep 'available' class, remove others if necessary
+                             cell.classList.remove('filled', 'potential');
+                             cell.classList.add('available');
+                             cell.setAttribute('role', 'button');
+                             cell.tabIndex = 0;
+                             cell.setAttribute('aria-label', `Punkte für ${CATEGORIES.find(c=>c.id===cat.id).name} für ${player.name} eintragen`);
+                        }
+                    }
+                });
+
+                // Update Upper Total
+                const upperTotalCell = document.getElementById(`upperTotal-${player.id}`);
+                if (upperTotalCell) upperTotalCell.textContent = upperScore;
+
+                // Update Upper Bonus
+                const upperBonusCell = document.getElementById(`upperBonus-${player.id}`);
+                if (upperBonusCell) {
+                    hasBonus = upperScore >= UPPER_BONUS_THRESHOLD;
+                    upperBonusCell.textContent = hasBonus ? UPPER_BONUS_POINTS : '0';
+                }
+
+                 // Update Ziffar Bonus
+                 const ziffarBonusCell = document.getElementById(`ziffarBonus-${player.id}`);
+                 const currentZiffarBonus = (ziffarBonus[player.id] > 1 ? (ziffarBonus[player.id] -1) : 0) * ZIFFAR_BONUS_POINTS;
+                 if (ziffarBonusCell) {
+                     ziffarBonusCell.textContent = currentZiffarBonus;
+                 }
+
+
+                // Update Total Score
+                const totalScoreCell = document.getElementById(`totalScore-${player.id}`);
+                if (totalScoreCell) {
+                    const bonusPoints = hasBonus ? UPPER_BONUS_POINTS : 0;
+                    totalScoreCell.textContent = upperScore + bonusPoints + lowerScore + currentZiffarBonus;
+                }
+            });
+        }
+
+
+        function calculatePotentialScores() {
+             potentialScores = {};
+             const currentPlayer = players[currentPlayerIndex];
+             CATEGORIES.forEach(cat => {
+                 if (scores[currentPlayer.id][cat.id] === null) { // Only calculate for available categories
+                     potentialScores[cat.id] = calculateScoreForCategory(cat.id, diceValues);
+                 } else {
+                     potentialScores[cat.id] = null; // Mark as not calculable
+                 }
+             });
+        }
+
+        function renderPotentialScores() {
+            clearPotentialScores(); // Clear previous potential scores first
+            const currentPlayer = players[currentPlayerIndex];
+            const defaultAriaLabel = (catName) => `Punkte für ${catName} für ${currentPlayer.name} eintragen`;
+
+            Object.entries(potentialScores).forEach(([categoryId, score]) => {
+                if (score !== null) { // Score is calculable (category available)
+                    const cell = scorecardBody.querySelector(`.score-cell[data-player-id="${currentPlayer.id}"][data-category-id="${categoryId}"]`);
+                    if (cell && !cell.classList.contains('filled')) {
+                        cell.textContent = score; // Show the potential score (even if 0)
+                        const catName = CATEGORIES.find(c=>c.id===categoryId).name;
+
+                        // **Potential Score Highlighting Change:** Only add 'potential' class if score > 0
+                        if (score > 0) {
+                            cell.classList.add('potential');
+                            cell.setAttribute('aria-label', `Mögliche Punkte für ${catName}: ${score}. Klicken zum Eintragen.`);
+                        } else {
+                            // Score is 0, don't add 'potential' class, use default ARIA label
+                            cell.classList.remove('potential'); // Ensure it's removed if previously set
+                            cell.setAttribute('aria-label', defaultAriaLabel(catName));
+                        }
+                    }
+                }
+            });
+        }
+
+         function clearPotentialScores() {
+            const currentPlayer = players[currentPlayerIndex];
+            // Select all cells for the current player that are not filled
+            const availableCells = scorecardBody.querySelectorAll(`.score-cell.available[data-player-id="${currentPlayer.id}"]`);
+
+            availableCells.forEach(cell => {
+                cell.classList.remove('potential'); // Remove potential class regardless of previous score
+                // Reset text only if it wasn't explicitly set to 0 by renderPotentialScores
+                if (cell.textContent !== '0') {
+                     cell.textContent = '-';
+                }
+                // Reset ARIA label to default
+                const categoryId = cell.dataset.categoryId;
+                const catName = CATEGORIES.find(c=>c.id===categoryId).name;
+                cell.setAttribute('aria-label', `Punkte für ${catName} für ${currentPlayer.name} eintragen`);
+            });
+         }
+
+
+        function nextTurn() {
+            currentPlayerIndex = (currentPlayerIndex + 1) % players.length;
+            currentRoll = 0;
+            heldDice.fill(false);
+            potentialScores = {}; // Clear potential scores object for the next player
+
+            if (currentPlayerIndex === 0) {
+                round++;
+            }
+
+            if (round > CATEGORIES.length) {
+                endGame();
+            } else {
+                updateGameInfo();
+                resetDiceAppearance(); // Show placeholder dice
+                rollBtn.disabled = false;
+                rollBtn.textContent = "Würfeln";
+                displayMessage(""); // Clear message for next player
+                // Don't calculate/render potential scores until first roll
+            }
+        }
+
+        function endGame() {
+            rollBtn.disabled = true;
+            displayMessage("Spiel vorbei!", "info");
+
+            let winningScore = -1;
+            let winners = [];
+            const finalPlayerData = []; // For history saving
+
+            const finalScoresHTML = players.map(player => {
+                const totalScoreCell = document.getElementById(`totalScore-${player.id}`);
+                const score = parseInt(totalScoreCell.textContent);
+                finalPlayerData.push({ name: player.name, score: score }); // Save for history
+
+                 if (score > winningScore) {
+                    winningScore = score;
+                    winners = [player.name];
+                } else if (score === winningScore) {
+                    winners.push(player.name);
+                }
+                return `<p><span class="font-semibold">${player.name}:</span> ${score} Punkte</p>`;
+            }).join('');
+
+            finalScoresDiv.innerHTML = finalScoresHTML;
+
+            if (winners.length === 1) {
+                winnerMessage.textContent = `${winners[0]} hat gewonnen! Herzlichen Glückwunsch!`;
+            } else {
+                 winnerMessage.textContent = `Unentschieden zwischen ${winners.join(' und ')}!`;
+            }
+
+            // Save game to history
+            const gameResult = {
+                date: new Date().toISOString(),
+                players: finalPlayerData,
+                winnerNames: winners
+            };
+            addGameToHistory(gameResult);
+
+
+            gameOverOverlay.classList.remove('hidden');
+            gameOverOverlay.classList.add('show');
+
+        }
+
+        function restartGame() {
+            gameOverOverlay.classList.remove('show');
+            gameOverOverlay.classList.add('hidden');
+            gameArea.classList.add('hidden');
+            playerSetupSection.classList.remove('hidden');
+            gameHistorySection.classList.remove('hidden'); // Show history again
+            // Reload saved names for setup
+            loadPlayerNames();
+            displayHistory(); // Refresh history display
+        }
+
+        function displayMessage(msg, type = "error") {
+            gameMessage.textContent = msg;
+            gameMessage.className = `mt-4 text-center font-medium h-6 ${type === 'error' ? 'text-red-600' : 'text-blue-600'}`;
+             // Make the message accessible to screen readers
+             gameMessage.setAttribute('role', 'alert');
+             gameMessage.setAttribute('aria-live', 'assertive');
+
+            // Clear message after a few seconds? Maybe not, could be annoying.
+            // setTimeout(() => { gameMessage.textContent = ''; gameMessage.removeAttribute('role'); }, 5000);
+        }
+
+        // --- SCORING CALCULATIONS ---
+        function calculateScoreForCategory(categoryId, dice) {
+            const counts = countDice(dice); // {1: count, 2: count, ...}
+            const sortedDice = [...dice].sort();
+            const sum = dice.reduce((a, b) => a + b, 0);
+
+            switch (categoryId) {
+                // Upper Section
+                case 'ones': return (counts[1] || 0) * 1;
+                case 'twos': return (counts[2] || 0) * 2;
+                case 'threes': return (counts[3] || 0) * 3;
+                case 'fours': return (counts[4] || 0) * 4;
+                case 'fives': return (counts[5] || 0) * 5;
+                case 'sixes': return (counts[6] || 0) * 6;
+
+                // Lower Section
+                case 'threeOfAKind':
+                    return Object.values(counts).some(count => count >= 3) ? sum : 0;
+                case 'fourOfAKind':
+                    return Object.values(counts).some(count => count >= 4) ? sum : 0;
+                case 'fullHouse':
+                    const vals = Object.values(counts).filter(c => c > 0); // Get counts of present dice
+                    return vals.length === 2 && (vals.includes(3) && vals.includes(2)) ? 25 : 0;
+                 case 'smallStraight':
+                    const uniqueSorted = [...new Set(sortedDice)]; // Remove duplicates e.g. [1,1,2,3,4] -> [1,2,3,4]
+                    // Check for 1-2-3-4, 2-3-4-5, or 3-4-5-6 by checking subsequences of length 4
+                    for (let i = 0; i <= uniqueSorted.length - 4; i++) {
+                        const sub = uniqueSorted.slice(i, i + 4);
+                        if (sub[3] === sub[0] + 3 && sub[2] === sub[0] + 2 && sub[1] === sub[0] + 1) {
+                             // Check specific required straights
+                             const seqStr = sub.join('');
+                             if (seqStr === '1234' || seqStr === '2345' || seqStr === '3456') {
+                                 return 30;
+                             }
+                        }
+                    }
+                    return 0;
+                case 'largeStraight':
+                     const uniqueLG = [...new Set(sortedDice)];
+                     // Check for 1-2-3-4-5 or 2-3-4-5-6 by checking subsequences of length 5
+                     for (let i = 0; i <= uniqueLG.length - 5; i++) {
+                         const sub = uniqueLG.slice(i, i + 5);
+                         if (sub[4] === sub[0] + 4 && sub[3] === sub[0] + 3 && sub[2] === sub[0] + 2 && sub[1] === sub[0] + 1) {
+                             const seqStr = sub.join('');
+                              if (seqStr === '12345' || seqStr === '23456') {
+                                 return 40;
+                              }
+                         }
+                     }
+                    return 0;
+                case 'ziffar': // Yahtzee
+                    return Object.values(counts).some(count => count >= 5) ? 50 : 0;
+                case 'chance':
+                    return sum;
+                default: return 0;
+            }
+        }
+
+        function countDice(dice) {
+            const counts = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 };
+            dice.forEach(d => {
+                if (d >= 1 && d <= 6) { // Ensure dice value is valid
+                   counts[d]++;
+                }
+            });
+            return counts;
+        }
+
+         function checkZiffar(dice) {
+             if (dice.length !== NUM_DICE || dice.some(d => d === undefined || d === null)) return false; // Basic check
+             const first = dice[0];
+             return dice.every(d => d === first);
+         }
 
     </script>
-
 </body>
 </html>
