@@ -1,182 +1,535 @@
 <!DOCTYPE html>
 <html lang="de">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ziffar - Das Würfelspiel</title>
-    <meta name="description" content="Ein Yahtzee-ähnliches Würfelspiel für mehrere Spieler im Hot-Seat-Modus mit Spielhistorie.">
+    <meta name="description"
+        content="Ein Yahtzee-ähnliches Würfelspiel für mehrere Spieler im Hot-Seat-Modus mit Spielhistorie und dynamischem Design.">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#4F46E5">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
     <style>
-        /* Basic Styling & Custom Properties */
+        /* CSS bleibt unverändert zur vorherigen Version */
+        /* --- Material You Inspired Theme --- */
         :root {
-            --dice-size: 50px; /* Control dice size */
-            --pip-size: 8px;   /* Control pip size */
-            --dice-bg: #ffffff;
-            --dice-border: #e5e7eb; /* gray-200 */
-            --pip-color: #1f2937; /* gray-800 */
-            --held-bg: #dbeafe; /* blue-100 */
-            --held-border: #93c5fd; /* blue-300 */
-            --button-bg: #4f46e5; /* indigo-600 */
-            --button-hover-bg: #4338ca; /* indigo-700 */
-            --button-text: #ffffff;
-            /* Tooltip styles removed */
+            /* Helle Variante (Default) */
+            --primary: #6750A4;
+            --on-primary: #FFFFFF;
+            --primary-container: #EADDFF;
+            --on-primary-container: #21005D;
+            --secondary: #625B71;
+            --on-secondary: #FFFFFF;
+            --secondary-container: #E8DEF8;
+            --on-secondary-container: #1D192B;
+            --tertiary: #7D5260;
+            --on-tertiary: #FFFFFF;
+            --tertiary-container: #FFD8E4;
+            --on-tertiary-container: #31111D;
+            --error: #B3261E;
+            --on-error: #FFFFFF;
+            --error-container: #F9DEDC;
+            --on-error-container: #410E0B;
+            --background: #FFFBFE;
+            --on-background: #1C1B1F;
+            --surface: #FFFBFE;
+            --on-surface: #1C1B1F;
+            --surface-variant: #E7E0EC;
+            --on-surface-variant: #49454F;
+            --outline: #79747E;
+            --outline-variant: #C4C6C9;
+            --shadow: #000000;
+            --surface-container-highest: #E6E0E9;
+            --surface-container-high: #ECE6F0;
+            --surface-container: #F3EDF7;
+            --surface-container-low: #F7F2FA;
+            --surface-container-lowest: #FFFFFF;
+            --dice-size: 50px;
+            --pip-size: 8px;
+            --border-radius-sm: 4px;
+            --border-radius-md: 8px;
+            --border-radius-lg: 12px;
+            --border-radius-xl: 16px;
+            --border-radius-full: 9999px;
+            --transition-duration: 0.2s;
+            --transition-timing: ease-in-out;
+            --oled-bg: #000000;
+        }
+
+        html.dark {
+            /* Dunkle Variante */
+            --primary: #D0BCFF;
+            --on-primary: #381E72;
+            --primary-container: #4F378B;
+            --on-primary-container: #EADDFF;
+            --secondary: #CCC2DC;
+            --on-secondary: #332D41;
+            --secondary-container: #4A4458;
+            --on-secondary-container: #E8DEF8;
+            --tertiary: #EFB8C8;
+            --on-tertiary: #492532;
+            --tertiary-container: #633B48;
+            --on-tertiary-container: #FFD8E4;
+            --error: #F2B8B5;
+            --on-error: #601410;
+            --error-container: #8C1D18;
+            --on-error-container: #F9DEDC;
+            --background: var(--oled-bg);
+            --on-background: #E6E1E5;
+            --surface: #141218;
+            --on-surface: #E6E1E5;
+            --surface-variant: #49454F;
+            --on-surface-variant: #CAC4D0;
+            --outline: #938F99;
+            --outline-variant: #444746;
+            --shadow: #000000;
+            --surface-container-highest: #36343B;
+            --surface-container-high: #2B2930;
+            --surface-container: #211F26;
+            --surface-container-low: #1D1B20;
+            --surface-container-lowest: #0F0D13;
         }
 
         body {
             font-family: 'Inter', sans-serif;
-            background-color: #f3f4f6; /* gray-100 */
-            color: #1f2937; /* gray-800 */
-            overscroll-behavior-y: contain; /* Prevent pull-to-refresh */
+            background-color: var(--background);
+            color: var(--on-background);
+            overscroll-behavior-y: contain;
+            transition: background-color var(--transition-duration) var(--transition-timing), color var(--transition-duration) var(--transition-timing);
         }
 
-        /* Dice Styling */
+        .card {
+            background-color: var(--surface);
+            color: var(--on-surface);
+            border-radius: var(--border-radius-xl);
+            box-shadow: 0 4px 6px -1px rgba(var(--shadow), 0.1), 0 2px 4px -1px rgba(var(--shadow), 0.06);
+            transition: background-color var(--transition-duration) var(--transition-timing), color var(--transition-duration) var(--transition-timing);
+            border: 1px solid var(--outline-variant);
+        }
+
+        .card-header {
+            background-color: var(--surface-container-low);
+            color: var(--on-surface-variant);
+            border-bottom: 1px solid var(--outline-variant);
+            padding: 1rem 1.5rem;
+            border-top-left-radius: var(--border-radius-xl);
+            border-top-right-radius: var(--border-radius-xl);
+        }
+
+        .card-body {
+            padding: 1.5rem;
+        }
+
+        .card-footer {
+            padding: 1rem 1.5rem;
+            border-top: 1px solid var(--outline-variant);
+            background-color: var(--surface-container-lowest);
+            border-bottom-left-radius: var(--border-radius-xl);
+            border-bottom-right-radius: var(--border-radius-xl);
+        }
+
         .dice {
             width: var(--dice-size);
             height: var(--dice-size);
-            background-color: var(--dice-bg);
-            border: 1px solid var(--dice-border);
-            border-radius: 8px; /* Rounded corners */
+            background-color: var(--surface-container-highest);
+            border: 1px solid var(--outline);
+            border-radius: var(--border-radius-md);
             padding: 4px;
             display: grid;
-            grid-template-areas:
-                "a . c"
-                "e g f"
-                "d . b";
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            grid-template-areas: "a . c" "e g f" "d . b";
+            box-shadow: 0 1px 3px rgba(var(--shadow), 0.1), 0 1px 2px rgba(var(--shadow), 0.06);
             cursor: pointer;
-            transition: all 0.2s ease-in-out;
-            position: relative; /* For potential animation effects */
-        }
-
-        .dice.held {
-            background-color: var(--held-bg);
-            border-color: var(--held-border);
-            box-shadow: 0 0 0 3px var(--held-border);
-        }
-
-        .dice:not(.held):hover {
-            transform: scale(1.05);
-            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+            transition: all var(--transition-duration) var(--transition-timing);
+            position: relative;
+            color: var(--on-surface);
         }
 
         .pip {
             width: var(--pip-size);
             height: var(--pip-size);
-            background-color: var(--pip-color);
+            background-color: var(--on-surface-variant);
             border-radius: 50%;
             align-self: center;
             justify-self: center;
-            display: none; /* Hide all pips initially */
+            display: none;
+            transition: background-color var(--transition-duration) var(--transition-timing);
         }
 
-        /* Show pips based on dice value attribute */
+        .dice.held {
+            background-color: var(--primary-container);
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--primary);
+        }
+
+        .dice:not(.held):hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 8px rgba(var(--shadow), 0.15);
+            border-color: var(--primary);
+        }
+
+        .dice.rolling {
+            animation: roll 0.5s ease-in-out;
+        }
+
+        @keyframes roll {
+            0% {
+                transform: rotate(0deg) scale(1);
+                opacity: 0.8;
+            }
+
+            25% {
+                transform: rotate(15deg) scale(1.1);
+                opacity: 1;
+            }
+
+            50% {
+                transform: rotate(-10deg) scale(0.9);
+            }
+
+            75% {
+                transform: rotate(5deg) scale(1.05);
+            }
+
+            100% {
+                transform: rotate(0deg) scale(1);
+                opacity: 1;
+            }
+        }
+
         .dice[data-value="1"] .pip.center,
         .dice[data-value="3"] .pip.center,
-        .dice[data-value="5"] .pip.center { display: block; grid-area: g; }
+        .dice[data-value="5"] .pip.center {
+            display: block;
+            grid-area: g;
+        }
 
         .dice[data-value="2"] .pip.top-left,
         .dice[data-value="3"] .pip.top-left,
         .dice[data-value="4"] .pip.top-left,
         .dice[data-value="5"] .pip.top-left,
-        .dice[data-value="6"] .pip.top-left { display: block; grid-area: a; }
+        .dice[data-value="6"] .pip.top-left {
+            display: block;
+            grid-area: a;
+        }
 
         .dice[data-value="2"] .pip.bottom-right,
         .dice[data-value="3"] .pip.bottom-right,
         .dice[data-value="4"] .pip.bottom-right,
         .dice[data-value="5"] .pip.bottom-right,
-        .dice[data-value="6"] .pip.bottom-right { display: block; grid-area: b; }
+        .dice[data-value="6"] .pip.bottom-right {
+            display: block;
+            grid-area: b;
+        }
 
         .dice[data-value="4"] .pip.top-right,
         .dice[data-value="5"] .pip.top-right,
-        .dice[data-value="6"] .pip.top-right { display: block; grid-area: c; }
+        .dice[data-value="6"] .pip.top-right {
+            display: block;
+            grid-area: c;
+        }
 
         .dice[data-value="4"] .pip.bottom-left,
         .dice[data-value="5"] .pip.bottom-left,
-        .dice[data-value="6"] .pip.bottom-left { display: block; grid-area: d; }
-
-        .dice[data-value="6"] .pip.middle-left { display: block; grid-area: e; }
-        .dice[data-value="6"] .pip.middle-right { display: block; grid-area: f; }
-
-        /* Scorecard Styling */
-        .score-cell {
-            cursor: pointer;
-            transition: background-color 0.2s ease;
-            position: relative;
-            vertical-align: middle; /* Align text vertically */
+        .dice[data-value="6"] .pip.bottom-left {
+            display: block;
+            grid-area: d;
         }
-        .score-cell.available:hover {
-            background-color: #e0e7ff; /* indigo-100 */
-        }
-        .score-cell.filled {
-            cursor: default;
-            font-weight: bold;
-            color: #374151; /* gray-700 */
-        }
-         .score-cell.potential { /* Style for potential scores > 0 */
-            background-color: #ccfbf1; /* teal-100 */
-            font-style: italic;
-            color: #115e59; /* teal-800 */
-         }
-         /* Style for the category description note */
-         .category-description {
-             display: block;
-             font-size: 0.75rem; /* text-xs */
-             line-height: 1rem;
-             color: #6b7280; /* gray-500 */
-             font-weight: 400; /* normal */
-             margin-top: 0.1rem;
-         }
 
-        /* Tooltip styles removed */
+        .dice[data-value="6"] .pip.middle-left {
+            display: block;
+            grid-area: e;
+        }
 
-        /* Button Styling */
+        .dice[data-value="6"] .pip.middle-right {
+            display: block;
+            grid-area: f;
+        }
+
         .btn {
-            background-color: var(--button-bg);
-            color: var(--button-text);
-            padding: 10px 20px;
+            padding: 10px 24px;
             border: none;
-            border-radius: 8px;
+            border-radius: var(--border-radius-full);
             font-weight: 500;
             cursor: pointer;
-            transition: background-color 0.2s ease, transform 0.1s ease;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            transition: background-color var(--transition-duration) var(--transition-timing), box-shadow var(--transition-duration) var(--transition-timing), transform 0.1s ease;
+            box-shadow: 0 1px 2px 0 rgba(var(--shadow), 0.05);
+            text-align: center;
+            display: inline-block;
         }
-        .btn:hover {
-            background-color: var(--button-hover-bg);
+
+        .btn-primary {
+            background-color: var(--primary);
+            color: var(--on-primary);
         }
-        .btn:active {
-            transform: scale(0.98);
+
+        .btn-primary:hover:not(:disabled) {
+            box-shadow: 0 4px 8px rgba(var(--primary), 0.3);
+            filter: brightness(1.1);
         }
-        .btn:disabled {
-            background-color: #9ca3af; /* gray-400 */
+
+        .btn-primary:active:not(:disabled) {
+            transform: scale(0.97);
+        }
+
+        .btn-primary:disabled {
+            background-color: var(--on-surface);
+            color: var(--surface);
+            opacity: 0.38;
             cursor: not-allowed;
+            box-shadow: none;
+            filter: none;
+        }
+
+        .btn-secondary {
+            background-color: var(--secondary-container);
+            color: var(--on-secondary-container);
+        }
+
+        .btn-secondary:hover:not(:disabled) {
+            box-shadow: 0 2px 4px rgba(var(--secondary), 0.2);
+            filter: brightness(0.95);
+        }
+
+        .btn-secondary:active:not(:disabled) {
+            transform: scale(0.97);
+        }
+
+        .btn-secondary:disabled {
+            background-color: var(--on-surface);
+            color: var(--surface);
+            opacity: 0.38;
+            cursor: not-allowed;
+            box-shadow: none;
+            filter: none;
+        }
+
+        .btn-icon {
+            background: none;
+            border: none;
+            color: var(--on-surface-variant);
+            padding: 8px;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: background-color var(--transition-duration) var(--transition-timing), color var(--transition-duration) var(--transition-timing);
+        }
+
+        .btn-icon:hover {
+            background-color: rgba(var(--on-surface-variant), 0.1);
+            color: var(--on-surface);
+        }
+
+        .scorecard-container {
+            overflow-x: auto;
+            border: 1px solid var(--outline-variant);
+            border-radius: var(--border-radius-lg);
+            background-color: var(--surface-container);
+        }
+
+        #scorecard {
+            width: 100%;
+            text-align: left;
+            color: var(--on-surface-variant);
+            border-collapse: collapse;
+        }
+
+        #scorecard thead {
+            background-color: var(--surface-container-high);
+            color: var(--on-surface-variant);
+        }
+
+        #scorecard th,
+        #scorecard td {
+            padding: 0.75rem 1rem;
+            vertical-align: middle;
+            border-bottom: 1px solid var(--outline-variant);
+        }
+
+        #scorecard tbody tr:last-child td,
+        #scorecard tbody tr:last-child th {
+            border-bottom: none;
+        }
+
+        #scorecard th {
+            font-weight: 500;
+            text-transform: none;
+        }
+
+        #scorecard th:first-child,
+        #scorecard td:first-child {
+            position: sticky;
+            left: 0;
+            background-color: inherit;
+            z-index: 10;
+            font-weight: 500;
+            color: var(--on-surface);
+            white-space: normal;
+            border-right: 1px solid var(--outline-variant);
+        }
+
+        #scorecard thead th:first-child {
+            z-index: 11;
+        }
+
+        #scorecard tfoot {
+            background-color: var(--primary-container);
+            color: var(--on-primary-container);
+            font-weight: bold;
+        }
+
+        #scorecard tfoot td,
+        #scorecard tfoot th {
+            border-top: 1px solid var(--outline);
+            border-bottom: none;
+        }
+
+        #scorecard tfoot th:first-child {
+            background-color: var(--primary-container);
+        }
+
+        .score-cell {
+            cursor: pointer;
+            transition: background-color var(--transition-duration) var(--transition-timing), color var(--transition-duration) var(--transition-timing), opacity var(--transition-duration) var(--transition-timing);
+            /* Transition für Opacity hinzugefügt */
+            text-align: center;
+            font-weight: 400;
+            /* Standard Gewicht */
+        }
+
+        .score-cell.available {
+            /* Standard '-' etwas unauffälliger machen */
+            color: var(--on-surface-variant);
             opacity: 0.7;
+            /* Leicht transparent */
         }
 
-        /* Highlight Current Player */
+        .score-cell.available:hover {
+            background-color: rgba(var(--primary), 0.08);
+            /* Leichter Hover Effekt */
+            opacity: 1;
+            /* Volle Opazität bei Hover */
+        }
+
+        .score-cell.filled {
+            cursor: default;
+            font-weight: 700;
+            /* Deutlich fetter */
+            color: var(--on-surface);
+            /* Volle Textfarbe */
+            background-color: var(--surface-container);
+            /* Leichter Hintergrund zur Abhebung */
+            opacity: 1;
+            /* Volle Opazität */
+        }
+
+        .score-cell.filled.current-player-column {
+            background-color: rgba(var(--primary), 0.15) !important;
+        }
+
+        .score-cell.potential {
+            background-color: var(--secondary-container);
+            color: var(--on-secondary-container);
+            font-style: italic;
+            font-weight: 300;
+            /* Etwas dicker als normal, aber nicht so fett wie filled */
+            opacity: 1;
+            /* Volle Opazität */
+        }
+
+        .score-cell.potential:hover {
+            filter: brightness(0.95);
+            /* Leichter Hover für Potential */
+        }
+
+        .category-description {
+            display: block;
+            font-size: 0.75rem;
+            line-height: 1rem;
+            color: var(--on-surface-variant);
+            font-weight: 400;
+            margin-top: 0.1rem;
+        }
+
+        .score-section-header {
+            background-color: var(--surface-container-low);
+            font-weight: 500;
+            color: var(--primary);
+            text-align: left;
+        }
+
+        .score-section-header td {
+            padding: 0.5rem 1rem;
+            position: sticky;
+            left: 0;
+            z-index: 10;
+            border-right: 1px solid var(--outline-variant);
+        }
+
         .current-player-column {
-            background-color: #eef2ff; /* indigo-50 */
-            outline: 2px solid var(--button-bg); /* indigo-600 */
-            outline-offset: -1px;
-        }
-        th.current-player-column {
-             background-color: #c7d2fe; /* indigo-200 */
+            background-color: rgba(var(--primary), 0.12) !important;
         }
 
-        /* Game Over Overlay */
+        th.current-player-column {
+            background-color: var(--primary-container) !important;
+            color: var(--on-primary-container);
+        }
+
+        tfoot td.current-player-column {
+            background-color: var(--primary) !important;
+            color: var(--on-primary);
+        }
+
+        #gameInfo {
+            background-color: var(--surface-container-low);
+            color: var(--on-surface-variant);
+            border-radius: var(--border-radius-lg);
+            padding: 1rem 1.5rem;
+            border: 1px solid var(--outline-variant);
+            text-align: center;
+        }
+
+        #gameInfo #currentPlayerName {
+            color: var(--primary);
+            font-weight: 700;
+        }
+
+        #playerSetup {
+            background-color: var(--surface-container-lowest);
+        }
+
+        label {
+            color: var(--on-surface-variant);
+            font-size: 0.875rem;
+            margin-bottom: 0.25rem;
+            display: block;
+        }
+
+        input[type="text"],
+        select {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border: 1px solid var(--outline);
+            border-radius: var(--border-radius-sm);
+            background-color: var(--surface-container-high);
+            color: var(--on-surface);
+            transition: border-color var(--transition-duration) var(--transition-timing), background-color var(--transition-duration) var(--transition-timing);
+        }
+
+        input[type="text"]:focus,
+        select:focus {
+            outline: 2px solid var(--primary);
+            outline-offset: 1px;
+            border-color: var(--primary);
+        }
+
         #gameOverOverlay {
             position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.7);
+            inset: 0;
+            background-color: rgba(0, 0, 0, 0.6);
             display: flex;
             justify-content: center;
             align-items: center;
@@ -185,57 +538,98 @@
             visibility: hidden;
             transition: opacity 0.3s ease, visibility 0.3s ease;
         }
+
         #gameOverOverlay.show {
             opacity: 1;
             visibility: visible;
         }
 
-        /* Game History Styling */
+        #gameOverContent {
+            background-color: var(--surface-container-high);
+            color: var(--on-surface);
+            padding: 2rem;
+            border-radius: var(--border-radius-xl);
+            box-shadow: 0 8px 16px rgba(var(--shadow), 0.2);
+            text-align: center;
+            max-width: 90%;
+            width: 400px;
+        }
+
+        #gameOverContent h2 {
+            color: var(--primary);
+            margin-bottom: 1rem;
+            font-size: 1.875rem;
+            font-weight: 700;
+        }
+
+        #gameOverContent #winnerMessage {
+            color: var(--secondary);
+            font-size: 1.125rem;
+            font-weight: 500;
+            margin-bottom: 1.5rem;
+        }
+
         #gameHistorySection {
-            max-height: 300px; /* Limit height */
-            overflow-y: auto; /* Add scrollbar if needed */
-            border: 1px solid #e5e7eb; /* gray-200 */
-            border-radius: 8px;
+            background-color: var(--surface-container-lowest);
+        }
+
+        #historyContent {
+            max-height: 300px;
+            overflow-y: auto;
             padding: 1rem;
-            background-color: #f9fafb; /* gray-50 */
+            border: 1px solid var(--outline-variant);
+            border-radius: var(--border-radius-lg);
+            background-color: var(--surface-container);
         }
-        #gameHistorySection h3 {
+
+        #historyContent h3 {
             margin-bottom: 0.75rem;
-            font-size: 1.125rem; /* text-lg */
-            font-weight: 600; /* semibold */
-            color: #4b5563; /* gray-600 */
+            font-size: 1.125rem;
+            font-weight: 500;
+            color: var(--on-surface-variant);
         }
-         #gameHistorySection ul {
+
+        #historyContent ul {
             list-style: none;
             padding: 0;
             margin: 0;
-         }
-         #gameHistorySection li {
-             border-bottom: 1px solid #e5e7eb; /* gray-200 */
-             padding: 0.75rem 0;
-             font-size: 0.875rem; /* text-sm */
-         }
-          #gameHistorySection li:last-child {
-             border-bottom: none;
-         }
-         #gameHistorySection .history-date {
-             display: block;
-             font-size: 0.75rem; /* text-xs */
-             color: #6b7280; /* gray-500 */
-             margin-bottom: 0.25rem;
-         }
-         #gameHistorySection .history-winner {
-             font-weight: 600; /* semibold */
-             color: #16a34a; /* green-600 */
-         }
-         #historyStats {
-             margin-top: 1rem;
-             padding-top: 1rem;
-             border-top: 1px solid #e5e7eb;
-         }
+        }
 
+        #historyContent li {
+            border-bottom: 1px solid var(--outline-variant);
+            padding: 0.75rem 0;
+            font-size: 0.875rem;
+            color: var(--on-surface-variant);
+        }
 
-        /* Accessibility */
+        #historyContent li:last-child {
+            border-bottom: none;
+        }
+
+        #historyContent .history-date {
+            display: block;
+            font-size: 0.75rem;
+            color: var(--on-surface-variant);
+            opacity: 0.8;
+            margin-bottom: 0.25rem;
+        }
+
+        #historyContent .history-winner {
+            font-weight: 500;
+            color: var(--tertiary);
+        }
+
+        #historyStats {
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid var(--outline-variant);
+        }
+
+        #historyStats ul li {
+            border-bottom: none;
+            padding: 0.25rem 0;
+        }
+
         .sr-only {
             position: absolute;
             width: 1px;
@@ -248,978 +642,353 @@
             border-width: 0;
         }
 
-        /* Dice Roll Animation */
-        @keyframes roll {
-            0% { transform: rotate(0deg) scale(1); }
-            25% { transform: rotate(15deg) scale(1.1); }
-            50% { transform: rotate(-10deg) scale(0.9); }
-            75% { transform: rotate(5deg) scale(1.05); }
-            100% { transform: rotate(0deg) scale(1); }
-        }
-        .dice.rolling {
-            animation: roll 0.5s ease-in-out;
+        .text-primary {
+            color: var(--primary);
         }
 
+        .text-secondary {
+            color: var(--secondary);
+        }
+
+        .text-tertiary {
+            color: var(--tertiary);
+        }
+
+        .text-error {
+            color: var(--error);
+        }
     </style>
 </head>
-<body class="min-h-screen p-4 md:p-8">
 
-    <div class="container mx-auto max-w-4xl bg-white p-6 rounded-lg shadow-lg">
+<body class="min-h-screen p-4 md:p-8 transition-colors duration-300">
 
-        <header class="text-center mb-6">
-            <h1 class="text-4xl font-bold text-indigo-600">Ziffar</h1>
-            <p class="text-gray-600">Das spannende Würfelspiel!</p>
+    <div class="container mx-auto max-w-4xl card">
+        <header class="flex justify-between items-center p-4 card-header">
+            <div>
+                <h1 class="text-3xl font-bold text-primary">Ziffar</h1>
+                <p class="text-on-surface-variant">Das dynamische Würfelspiel!</p>
+            </div>
+            <button id="darkModeToggle" class="btn-icon text-xl" aria-label="Dark Mode umschalten">
+                <i class="fas fa-sun"></i> </button>
         </header>
 
-        <section id="playerSetup" class="mb-6 p-4 border border-gray-200 rounded-md bg-gray-50">
-            <h2 class="text-xl font-semibold mb-3 text-gray-700">Spieler einrichten</h2>
-            <div class="flex flex-col sm:flex-row gap-4 mb-3">
-                <div class="flex-grow">
-                    <label for="playerCount" class="block text-sm font-medium text-gray-700 mb-1">Anzahl Spieler:</label>
-                    <select id="playerCount" class="w-full p-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500">
-                        <option value="1">1 Spieler</option>
-                        <option value="2" selected>2 Spieler</option>
-                        <option value="3">3 Spieler</option>
-                        <option value="4">4 Spieler</option>
-                    </select>
-                </div>
-                <div id="playerNamesContainer" class="flex-grow grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div class="card-body space-y-6">
+            <section id="playerSetup" class="card p-6 bg-[var(--surface-container-lowest)]">
+                <h2 class="text-xl font-semibold mb-4 text-on-surface">Spieler einrichten</h2>
+                <div class="flex flex-col sm:flex-row gap-4 mb-4">
+                    <div class="flex-grow">
+                        <label for="playerCount">Anzahl Spieler:</label>
+                        <select id="playerCount" class="w-full">
+                            <option value="1">1 Spieler</option>
+                            <option value="2" selected>2 Spieler</option>
+                            <option value="3">3 Spieler</option>
+                            <option value="4">4 Spieler</option>
+                        </select>
                     </div>
-            </div>
-            <button id="startGameBtn" class="btn w-full sm:w-auto">Spiel starten</button>
-        </section>
-
-        <section id="gameHistorySection" class="mb-6">
-             <div id="historyContent">
-                 <p class="text-center text-gray-500">Noch keine Spiele gespielt.</p>
-             </div>
-        </section>
-
-
-        <main id="gameArea" class="hidden">
-            <section id="gameInfo" class="mb-4 p-4 border border-gray-200 rounded-md bg-indigo-50 text-center">
-                <p class="text-lg font-medium">Aktueller Spieler: <span id="currentPlayerName" class="font-bold text-indigo-700"></span></p>
-                <p class="text-sm text-gray-600">Würfe übrig: <span id="rollsLeft" class="font-semibold">3</span> | Runde: <span id="currentRound" class="font-semibold">1</span> / 13</p>
-            </section>
-
-            <section id="diceArea" class="mb-6 text-center">
-                <h2 class="text-lg font-semibold mb-3 text-gray-700">Würfel <span class="text-sm font-normal text-gray-500">(Klicken zum Halten/Lösen)</span></h2>
-                <div id="diceContainer" class="flex justify-center gap-3 flex-wrap mb-4">
-                    <div class="dice" data-value="1" aria-label="Würfel zeigt 1" role="img">
-                        <span class="pip top-left"></span><span class="pip top-right"></span>
-                        <span class="pip middle-left"></span><span class="pip center"></span><span class="pip middle-right"></span>
-                        <span class="pip bottom-left"></span><span class="pip bottom-right"></span>
-                    </div>
-                     <div class="dice" data-value="2" aria-label="Würfel zeigt 2" role="img">
-                        <span class="pip top-left"></span><span class="pip top-right"></span>
-                        <span class="pip middle-left"></span><span class="pip center"></span><span class="pip middle-right"></span>
-                        <span class="pip bottom-left"></span><span class="pip bottom-right"></span>
-                    </div>
-                    <div class="dice" data-value="3" aria-label="Würfel zeigt 3" role="img">
-                        <span class="pip top-left"></span><span class="pip top-right"></span>
-                        <span class="pip middle-left"></span><span class="pip center"></span><span class="pip middle-right"></span>
-                        <span class="pip bottom-left"></span><span class="pip bottom-right"></span>
-                    </div>
-                     <div class="dice" data-value="4" aria-label="Würfel zeigt 4" role="img">
-                        <span class="pip top-left"></span><span class="pip top-right"></span>
-                        <span class="pip middle-left"></span><span class="pip center"></span><span class="pip middle-right"></span>
-                        <span class="pip bottom-left"></span><span class="pip bottom-right"></span>
-                    </div>
-                     <div class="dice" data-value="5" aria-label="Würfel zeigt 5" role="img">
-                        <span class="pip top-left"></span><span class="pip top-right"></span>
-                        <span class="pip middle-left"></span><span class="pip center"></span><span class="pip middle-right"></span>
-                        <span class="pip bottom-left"></span><span class="pip bottom-right"></span>
+                    <div id="playerNamesContainer" class="flex-grow grid grid-cols-1 sm:grid-cols-2 gap-4">
                     </div>
                 </div>
-                <button id="rollBtn" class="btn">Würfeln</button>
+                <button id="startGameBtn" class="btn btn-primary w-full sm:w-auto">Spiel starten</button>
             </section>
 
-            <section id="scorecardArea">
-                <h2 class="text-xl font-semibold mb-3 text-gray-700 text-center">Punktekarte</h2>
-                <div class="overflow-x-auto rounded-md border border-gray-200 shadow-sm">
-                    <table id="scorecard" class="w-full text-sm text-left text-gray-500">
-                        <thead class="text-xs text-gray-700 uppercase bg-gray-100">
-                            <tr>
-                                <th scope="col" class="px-4 py-3 sticky left-0 bg-gray-100 z-10 align-top">Kategorie</th>
+            <section id="gameHistorySection" class="hidden card p-0 bg-[var(--surface-container-lowest)]">
+                <h3 class="text-lg font-medium p-4 border-b border-[var(--outline-variant)] text-on-surface">
+                    Spielhistorie</h3>
+                <div id="historyContent" class="p-4 max-h-[300px] overflow-y-auto">
+                    <p class="text-center text-on-surface-variant">Noch keine Spiele gespielt.</p>
+                </div>
+            </section>
+
+
+            <main id="gameArea" class="hidden space-y-6">
+                <section id="gameInfo" class="text-center">
+                    <p class="text-lg font-medium">
+                        <span class="text-on-surface-variant">Spieler:</span>
+                        <span id="currentPlayerName" class="font-bold text-primary text-xl"></span>
+                    </p>
+                    <p class="text-sm text-on-surface-variant">
+                        Würfe: <span id="rollsLeft" class="font-semibold text-base">3</span> | Runde: <span
+                            id="currentRound" class="font-semibold text-base">1</span> / 13
+                    </p>
+                </section>
+
+                <section id="diceArea" class="text-center space-y-4">
+                    <h2 class="text-lg font-medium mb-2 text-on-surface-variant">
+                        Würfel <span class="text-sm font-normal">(Klicken zum Halten/Lösen)</span>
+                    </h2>
+                    <div id="diceContainer" class="flex justify-center gap-3 flex-wrap">
+                    </div>
+                    <button id="rollBtn" class="btn btn-primary">Würfeln</button>
+                </section>
+
+                <section id="scorecardArea">
+                    <h2 class="text-xl font-semibold mb-3 text-on-surface text-center">Punktekarte</h2>
+                    <div class="scorecard-container">
+                        <table id="scorecard">
+                            <thead class="text-xs uppercase">
+                                <tr>
+                                    <th scope="col" class="sticky left-0 z-10 align-top">Kategorie</th>
                                 </tr>
-                        </thead>
-                        <tbody>
+                            </thead>
+                            <tbody>
                             </tbody>
-                         <tfoot class="font-semibold text-gray-700 bg-gray-100">
+                            <tfoot>
                             </tfoot>
-                    </table>
-                </div>
-                 <p class="text-xs text-center mt-2 text-gray-500">Klicke auf eine verfügbare Zelle, um Punkte einzutragen.</p>
-            </section>
-
-             <div id="gameMessage" class="mt-4 text-center font-medium text-red-600 h-6"></div>
-
-        </main>
-
-        <div id="gameOverOverlay" class="hidden">
-            <div class="bg-white p-8 rounded-lg shadow-xl text-center max-w-md w-full mx-4">
-                <h2 class="text-3xl font-bold mb-4 text-indigo-600">Spiel vorbei!</h2>
-                <div id="finalScores" class="mb-6 space-y-2">
+                        </table>
                     </div>
-                <p id="winnerMessage" class="text-xl font-semibold mb-6"></p>
-                <button id="restartGameBtn" class="btn">Neues Spiel</button>
+                    <p class="text-xs text-center mt-2 text-on-surface-variant">Klicke auf eine verfügbare Zelle, um
+                        Punkte einzutragen.</p>
+                </section>
+
+                <div id="gameMessage" class="text-center font-medium text-error h-6"></div>
+
+            </main>
+
+            <div id="gameOverOverlay" class="hidden">
+                <div id="gameOverContent">
+                    <h2>Spiel vorbei!</h2>
+                    <div id="finalScores" class="mb-6 space-y-2 text-left">
+                    </div>
+                    <p id="winnerMessage" class="text-xl font-semibold mb-6"></p>
+                    <button id="restartGameBtn" class="btn btn-primary">Neues Spiel</button>
+                </div>
             </div>
         </div>
-
     </div>
-
     <script>
         // --- CONFIGURATION ---
-        const NUM_DICE = 5;
-        const MAX_ROLLS = 3;
-        const CATEGORIES = [
-            // Upper Section
-            { id: 'ones', name: 'Einsen', description: 'Nur Einsen zählen', section: 'upper' },
-            { id: 'twos', name: 'Zweien', description: 'Nur Zweien zählen', section: 'upper' },
-            { id: 'threes', name: 'Dreien', description: 'Nur Dreien zählen', section: 'upper' },
-            { id: 'fours', name: 'Vieren', description: 'Nur Vieren zählen', section: 'upper' },
-            { id: 'fives', name: 'Fünfen', description: 'Nur Fünfen zählen', section: 'upper' },
-            { id: 'sixes', name: 'Sechsen', description: 'Nur Sechsen zählen', section: 'upper' },
-            // Lower Section
-            { id: 'threeOfAKind', name: 'Dreierpasch', description: 'Mind. 3 gleiche Würfel. Alle Augen zählen.', section: 'lower' },
-            { id: 'fourOfAKind', name: 'Viererpasch', description: 'Mind. 4 gleiche Würfel. Alle Augen zählen.', section: 'lower' },
-            { id: 'fullHouse', name: 'Full House', description: '3 gleiche + 2 gleiche Würfel. 25 Punkte.', section: 'lower' },
-            { id: 'smallStraight', name: 'Kleine Straße', description: 'Folge von 4 Würfeln (z.B. 1-2-3-4). 30 Punkte.', section: 'lower' },
-            { id: 'largeStraight', name: 'Große Straße', description: 'Folge von 5 Würfeln (z.B. 1-2-3-4-5). 40 Punkte.', section: 'lower' },
-            { id: 'ziffar', name: 'Ziffar', description: '5 gleiche Würfel. 50 Punkte.', section: 'lower' },
-            { id: 'chance', name: 'Chance', description: 'Alle Augen zählen.', section: 'lower' },
-        ];
-        const UPPER_BONUS_THRESHOLD = 63;
-        const UPPER_BONUS_POINTS = 35;
-        const ZIFFAR_BONUS_POINTS = 100; // Bonus for additional Ziffars
-
+        const NUM_DICE = 5; const MAX_ROLLS = 3; const CATEGORIES = [{ id: 'ones', name: 'Einsen', description: 'Nur Einsen zählen', section: 'upper' }, { id: 'twos', name: 'Zweien', description: 'Nur Zweien zählen', section: 'upper' }, { id: 'threes', name: 'Dreien', description: 'Nur Dreien zählen', section: 'upper' }, { id: 'fours', name: 'Vieren', description: 'Nur Vieren zählen', section: 'upper' }, { id: 'fives', name: 'Fünfen', description: 'Nur Fünfen zählen', section: 'upper' }, { id: 'sixes', name: 'Sechsen', description: 'Nur Sechsen zählen', section: 'upper' }, { id: 'threeOfAKind', name: 'Dreierpasch', description: 'Mind. 3 gleiche Würfel. Alle Augen zählen.', section: 'lower' }, { id: 'fourOfAKind', name: 'Viererpasch', description: 'Mind. 4 gleiche Würfel. Alle Augen zählen.', section: 'lower' }, { id: 'fullHouse', name: 'Full House', description: '3 gleiche + 2 gleiche Würfel. 25 Punkte.', section: 'lower' }, { id: 'smallStraight', name: 'Kleine Straße', description: 'Folge von 4 Würfeln (z.B. 1-2-3-4). 30 Punkte.', section: 'lower' }, { id: 'largeStraight', name: 'Große Straße', description: 'Folge von 5 Würfeln (z.B. 1-2-3-4-5). 40 Punkte.', section: 'lower' }, { id: 'ziffar', name: 'Ziffar', description: '5 gleiche Würfel. 50 Punkte.', section: 'lower' }, { id: 'chance', name: 'Chance', description: 'Alle Augen zählen.', section: 'lower' },]; const UPPER_BONUS_THRESHOLD = 63; const UPPER_BONUS_POINTS = 35; const ZIFFAR_BONUS_POINTS = 100; const playerColors = ['#6750A4', '#006D3D', '#B3261E', '#0061A4', '#795548', '#E67C73'];
         // --- DOM ELEMENTS ---
-        const playerSetupSection = document.getElementById('playerSetup');
-        const playerCountSelect = document.getElementById('playerCount');
-        const playerNamesContainer = document.getElementById('playerNamesContainer');
-        const startGameBtn = document.getElementById('startGameBtn');
-        const gameHistorySection = document.getElementById('gameHistorySection'); // History Section
-        const historyContent = document.getElementById('historyContent'); // Div inside history section
-        const gameArea = document.getElementById('gameArea');
-        const gameInfo = document.getElementById('gameInfo');
-        const currentPlayerNameSpan = document.getElementById('currentPlayerName');
-        const rollsLeftSpan = document.getElementById('rollsLeft');
-        const currentRoundSpan = document.getElementById('currentRound');
-        const diceContainer = document.getElementById('diceContainer');
-        const rollBtn = document.getElementById('rollBtn');
-        const scorecardTable = document.getElementById('scorecard');
-        const scorecardBody = scorecardTable.getElementsByTagName('tbody')[0];
-        const scorecardFoot = scorecardTable.getElementsByTagName('tfoot')[0];
-        const gameMessage = document.getElementById('gameMessage');
-        const gameOverOverlay = document.getElementById('gameOverOverlay');
-        const finalScoresDiv = document.getElementById('finalScores');
-        const winnerMessage = document.getElementById('winnerMessage');
-        const restartGameBtn = document.getElementById('restartGameBtn');
-
+        const htmlElement = document.documentElement; const playerSetupSection = document.getElementById('playerSetup'); const playerCountSelect = document.getElementById('playerCount'); const playerNamesContainer = document.getElementById('playerNamesContainer'); const startGameBtn = document.getElementById('startGameBtn'); const gameHistorySection = document.getElementById('gameHistorySection'); const historyContent = document.getElementById('historyContent'); const gameArea = document.getElementById('gameArea'); const gameInfo = document.getElementById('gameInfo'); const currentPlayerNameSpan = document.getElementById('currentPlayerName'); const rollsLeftSpan = document.getElementById('rollsLeft'); const currentRoundSpan = document.getElementById('currentRound'); const diceContainer = document.getElementById('diceContainer'); const rollBtn = document.getElementById('rollBtn'); const scorecardTable = document.getElementById('scorecard'); const scorecardBody = scorecardTable ? scorecardTable.getElementsByTagName('tbody')[0] : null; const scorecardFoot = scorecardTable ? scorecardTable.getElementsByTagName('tfoot')[0] : null; const gameMessage = document.getElementById('gameMessage'); const gameOverOverlay = document.getElementById('gameOverOverlay'); const finalScoresDiv = document.getElementById('finalScores'); const winnerMessage = document.getElementById('winnerMessage'); const restartGameBtn = document.getElementById('restartGameBtn'); const darkModeToggle = document.getElementById('darkModeToggle'); const themeColorMeta = document.querySelector('meta[name="theme-color"]');
         // --- GAME STATE ---
-        let players = [];
-        let currentPlayerIndex = 0;
-        let currentRoll = 0;
-        let round = 1;
-        let diceValues = Array(NUM_DICE).fill(1);
-        let heldDice = Array(NUM_DICE).fill(false);
-        let scores = {}; // { playerId: { categoryId: score | null, ... }, ... }
-        let potentialScores = {}; // { categoryId: score | null }
-        let ziffarBonus = {}; // { playerId: count }
-
+        let players = []; let currentPlayerIndex = 0; let currentRoll = 0; let round = 1; let diceValues = Array(NUM_DICE).fill(1); let heldDice = Array(NUM_DICE).fill(false); let scores = {}; let potentialScores = {}; let ziffarBonus = {}; let isDarkMode = false;
         // --- LOCAL STORAGE KEYS ---
-        const LS_PLAYERS_KEY = 'ziffar_playerNames';
-        const LS_GAME_HISTORY_KEY = 'ziffar_gameHistory'; // Key for game history
+        const LS_PLAYERS_KEY = 'ziffar_playerNames_v2'; const LS_GAME_HISTORY_KEY = 'ziffar_gameHistory_v2'; const LS_DARK_MODE_KEY = 'ziffar_darkMode';
+
+        // --- HELPER FUNCTIONS ---
+        function hexToHSL(H) { let r = 0, g = 0, b = 0; if (H.length == 4) { r = "0x" + H[1] + H[1]; g = "0x" + H[2] + H[2]; b = "0x" + H[3] + H[3]; } else if (H.length == 7) { r = "0x" + H[1] + H[2]; g = "0x" + H[3] + H[4]; b = "0x" + H[5] + H[6]; } r /= 255; g /= 255; b /= 255; let cmin = Math.min(r, g, b), cmax = Math.max(r, g, b), delta = cmax - cmin, h = 0, s = 0, l = 0; if (delta == 0) h = 0; else if (cmax == r) h = ((g - b) / delta) % 6; else if (cmax == g) h = (b - r) / delta + 2; else h = (r - g) / delta + 4; h = Math.round(h * 60); if (h < 0) h += 360; l = (cmax + cmin) / 2; s = delta == 0 ? 0 : delta / (1 - Math.abs(2 * l - 1)); s = +(s * 100).toFixed(1); l = +(l * 100).toFixed(1); return [h, s, l]; }
+        function formatHSL(hsl) { return `hsl(${hsl[0]}, ${hsl[1]}%, ${hsl[2]}%)`; }
+        function generateThemeColors(baseHex, darkMode = false) { const baseHSL = hexToHSL(baseHex); if (!baseHSL) return {}; const [h, s, l] = baseHSL; const theme = {}; if (darkMode) { theme['--primary'] = formatHSL([h, Math.min(s, 80), Math.min(l + 40, 80)]); theme['--on-primary'] = formatHSL([h, Math.max(s - 30, 10), Math.max(l - 30, 20)]); theme['--primary-container'] = formatHSL([h, Math.min(s, 60), Math.max(l - 20, 25)]); theme['--on-primary-container'] = formatHSL([h, Math.min(s, 90), Math.min(l + 50, 90)]); theme['--secondary'] = formatHSL([(h + 30) % 360, Math.min(s - 10, 50), Math.min(l + 30, 75)]); theme['--on-secondary'] = formatHSL([(h + 30) % 360, Math.max(s - 40, 10), Math.max(l - 20, 20)]); theme['--secondary-container'] = formatHSL([(h + 30) % 360, Math.min(s - 10, 40), Math.max(l - 15, 30)]); theme['--on-secondary-container'] = formatHSL([(h + 30) % 360, Math.min(s, 80), Math.min(l + 45, 90)]); theme['--surface'] = formatHSL([h, Math.min(s, 10), 10]); theme['--on-surface'] = formatHSL([h, Math.min(s, 15), 90]); theme['--surface-variant'] = formatHSL([h, Math.min(s, 15), 25]); theme['--on-surface-variant'] = formatHSL([h, Math.min(s, 15), 80]); theme['--outline'] = formatHSL([h, Math.min(s, 10), 60]); theme['--outline-variant'] = formatHSL([h, Math.min(s, 10), 30]); theme['--background'] = `var(--oled-bg)`; theme['--on-background'] = theme['--on-surface']; theme['--surface-container-lowest'] = formatHSL([h, Math.min(s, 5), 5]); theme['--surface-container-low'] = formatHSL([h, Math.min(s, 10), 12]); theme['--surface-container'] = formatHSL([h, Math.min(s, 10), 15]); theme['--surface-container-high'] = formatHSL([h, Math.min(s, 12), 18]); theme['--surface-container-highest'] = formatHSL([h, Math.min(s, 12), 22]); } else { theme['--primary'] = formatHSL([h, Math.min(s, 70), Math.max(l, 40)]); theme['--on-primary'] = formatHSL([h, Math.min(s, 50), Math.min(l + 50, 100)]); if (l > 65) theme['--on-primary'] = formatHSL([h, Math.min(s, 70), Math.max(l - 50, 10)]); theme['--primary-container'] = formatHSL([h, Math.min(s, 50), Math.min(l + 50, 90)]); theme['--on-primary-container'] = formatHSL([h, Math.min(s, 70), Math.max(l - 25, 20)]); theme['--secondary'] = formatHSL([(h + 60) % 360, Math.max(s - 20, 30), l]); theme['--on-secondary'] = formatHSL([(h + 60) % 360, Math.min(s, 50), Math.min(l + 50, 100)]); if (l > 65) theme['--on-secondary'] = formatHSL([(h + 60) % 360, Math.min(s, 70), Math.max(l - 50, 10)]); theme['--secondary-container'] = formatHSL([(h + 60) % 360, Math.max(s - 20, 40), Math.min(l + 45, 92)]); theme['--on-secondary-container'] = formatHSL([(h + 60) % 360, Math.min(s, 70), Math.max(l - 15, 25)]); theme['--surface'] = formatHSL([h, Math.min(s, 15), 98]); theme['--on-surface'] = formatHSL([h, Math.min(s, 10), 10]); theme['--surface-variant'] = formatHSL([h, Math.min(s, 20), 90]); theme['--on-surface-variant'] = formatHSL([h, Math.min(s, 15), 30]); theme['--outline'] = formatHSL([h, Math.min(s, 10), 50]); theme['--outline-variant'] = formatHSL([h, Math.min(s, 10), 80]); theme['--background'] = formatHSL([h, Math.min(s, 10), 99]); theme['--on-background'] = theme['--on-surface']; theme['--surface-container-lowest'] = formatHSL([h, 0, 100]); theme['--surface-container-low'] = formatHSL([h, Math.min(s, 15), 96]); theme['--surface-container'] = formatHSL([h, Math.min(s, 15), 94]); theme['--surface-container-high'] = formatHSL([h, Math.min(s, 15), 92]); theme['--surface-container-highest'] = formatHSL([h, Math.min(s, 18), 90]); } theme['--tertiary'] = formatHSL([(h - 60 + 360) % 360, Math.max(s - 10, 40), l]); theme['--on-tertiary'] = darkMode ? formatHSL([(h - 60 + 360) % 360, Math.max(s - 30, 10), Math.max(l - 25, 20)]) : formatHSL([(h - 60 + 360) % 360, Math.min(s, 50), Math.min(l + 50, 100)]); if (!darkMode && l > 65) theme['--on-tertiary'] = formatHSL([(h - 60 + 360) % 360, Math.min(s, 70), Math.max(l - 50, 10)]); theme['--tertiary-container'] = darkMode ? formatHSL([(h - 60 + 360) % 360, Math.min(s - 10, 40), Math.max(l - 10, 35)]) : formatHSL([(h - 60 + 360) % 360, Math.max(s - 10, 50), Math.min(l + 40, 90)]); theme['--on-tertiary-container'] = darkMode ? formatHSL([(h - 60 + 360) % 360, Math.min(s, 80), Math.min(l + 40, 90)]) : formatHSL([(h - 60 + 360) % 360, Math.min(s, 70), Math.max(l - 20, 20)]); theme['--error'] = darkMode ? '#F2B8B5' : '#B3261E'; theme['--on-error'] = darkMode ? '#601410' : '#FFFFFF'; theme['--error-container'] = darkMode ? '#8C1D18' : '#F9DEDC'; theme['--on-error-container'] = darkMode ? '#F9DEDC' : '#410E0B'; theme['--shadow'] = '#000000'; return theme; }
+        function applyThemeVariables(themeObject) { if (!htmlElement) return; for (const [key, value] of Object.entries(themeObject)) { htmlElement.style.setProperty(key, value); } if (themeColorMeta) { themeColorMeta.content = themeObject['--primary']; } }
+        function applyPlayerTheme() { if (!players || !players.length || !htmlElement) return; const currentPlayer = players[currentPlayerIndex]; if (!currentPlayer) return; if (!currentPlayer.theme) { try { currentPlayer.theme = generateThemeColors(currentPlayer.color, isDarkMode); } catch (e) { console.error("Error generating theme for player", currentPlayer, e); return; } } const themeMatchesDarkMode = (currentPlayer.theme['--background'] === 'var(--oled-bg)' && isDarkMode) || (currentPlayer.theme['--background'] !== 'var(--oled-bg)' && !isDarkMode); if (!themeMatchesDarkMode) { try { currentPlayer.theme = generateThemeColors(currentPlayer.color, isDarkMode); } catch (e) { console.error("Error regenerating theme for player", currentPlayer, e); return; } } if (currentPlayer.theme) { applyThemeVariables(currentPlayer.theme); } }
+        function updateDarkModeToggleIcon() { if (!darkModeToggle) return; const icon = darkModeToggle.querySelector('i'); if (icon) { if (isDarkMode) { icon.classList.remove('fa-sun'); icon.classList.add('fa-moon'); } else { icon.classList.remove('fa-moon'); icon.classList.add('fa-sun'); } } }
+        function toggleDarkMode() { isDarkMode = !isDarkMode; htmlElement.classList.toggle('dark', isDarkMode); try { localStorage.setItem(LS_DARK_MODE_KEY, isDarkMode); } catch (e) { console.error("Dark Mode state konnte nicht gespeichert werden.", e); } updateDarkModeToggleIcon(); applyPlayerTheme(); }
+        function initializeDarkMode() { try { const storedDarkMode = localStorage.getItem(LS_DARK_MODE_KEY); isDarkMode = storedDarkMode === 'true'; } catch (e) { console.error("Dark Mode state konnte nicht geladen werden.", e); isDarkMode = window.matchMedia?.('(prefers-color-scheme: dark)')?.matches ?? false; } if (htmlElement) htmlElement.classList.toggle('dark', isDarkMode); updateDarkModeToggleIcon(); }
+        function getSavedPlayerNames() { try { const names = localStorage.getItem(LS_PLAYERS_KEY); return names ? JSON.parse(names) : []; } catch (e) { console.error("Laden der Spielernamen fehlgeschlagen:", e); return []; } }
+        function savePlayerNames(names) { try { localStorage.setItem(LS_PLAYERS_KEY, JSON.stringify(names)); } catch (e) { console.error("Speichern der Spielernamen fehlgeschlagen:", e); displayMessage("Speichern der Namen nicht möglich."); } }
+        function loadPlayerNames() { if (!playerCountSelect) return; console.log("Loading player names..."); const savedNames = getSavedPlayerNames(); if (savedNames.length > 0) { if (savedNames.length <= playerCountSelect.options.length) { playerCountSelect.value = savedNames.length; } setupPlayerInputs(); } else { setupPlayerInputs(); } console.log("Player names loaded."); }
 
         // --- INITIALIZATION ---
-        document.addEventListener('DOMContentLoaded', () => {
-            setupPlayerInputs();
-            loadPlayerNames();
-            displayHistory(); // Load and display history on initial load
-            playerCountSelect.addEventListener('change', setupPlayerInputs);
-            startGameBtn.addEventListener('click', startGame);
-            rollBtn.addEventListener('click', rollDice);
-            diceContainer.addEventListener('click', toggleHoldDice);
-            scorecardBody.addEventListener('click', handleScorecardClick);
-            restartGameBtn.addEventListener('click', restartGame);
-
-            // Initial dice display
-            renderDice();
-
-            // Register Service Worker for PWA
-            if ('serviceWorker' in navigator) {
-                navigator.serviceWorker.register('sw.js')
-                    .then(registration => console.log('Service Worker registered with scope:', registration.scope))
-                    .catch(error => console.log('Service Worker registration failed:', error));
-            }
-        });
+        document.addEventListener('DOMContentLoaded', () => { /* unverändert */ console.log("DOM fully loaded and parsed"); if (!playerSetupSection || !playerCountSelect || !playerNamesContainer || !startGameBtn || !gameHistorySection || !historyContent || !gameArea || !diceContainer || !rollBtn || !scorecardTable || !gameOverOverlay || !darkModeToggle || !scorecardBody || !scorecardFoot) { console.error("FEHLER: Eines oder mehrere essentielle HTML-Elemente wurden nicht gefunden! Überprüfe die IDs im HTML."); alert("Initialisierungsfehler! Wichtige Spielelemente fehlen. Bitte überprüfe die HTML-Struktur oder die Konsole."); return; } try { initializeDarkMode(); setupPlayerInputs(); loadPlayerNames(); displayHistory(); playerCountSelect.addEventListener('change', setupPlayerInputs); startGameBtn.addEventListener('click', startGame); rollBtn.addEventListener('click', rollDice); diceContainer.addEventListener('click', toggleHoldDice); scorecardBody.addEventListener('click', handleScorecardClick); restartGameBtn.addEventListener('click', restartGame); darkModeToggle.addEventListener('click', toggleDarkMode); renderDice(); console.log("Event listeners attached."); if ('serviceWorker' in navigator) { navigator.serviceWorker.register('sw.js').then(registration => console.log('Service Worker registered:', registration.scope)).catch(error => console.log('Service Worker registration failed:', error)); } else { console.log("Service Worker not supported."); } if (players.length > 0) { applyPlayerTheme(); } else { applyThemeVariables(generateThemeColors(playerColors[0], isDarkMode)); } } catch (error) { console.error("FEHLER bei der Initialisierung des Spiels:", error); alert("Ein Fehler ist bei der Initialisierung aufgetreten. Bitte prüfe die Konsole für Details."); } });
 
         // --- PLAYER SETUP ---
-        function setupPlayerInputs() {
-            const count = parseInt(playerCountSelect.value);
-            playerNamesContainer.innerHTML = ''; // Clear previous inputs
-            const savedNames = getSavedPlayerNames();
-
-            for (let i = 0; i < count; i++) {
-                const inputId = `playerName${i + 1}`;
-                const savedName = savedNames[i] || `Spieler ${i + 1}`;
-                const div = document.createElement('div');
-                div.innerHTML = `
-                    <label for="${inputId}" class="block text-sm font-medium text-gray-700 mb-1">Spieler ${i + 1}:</label>
-                    <input type="text" id="${inputId}" value="${savedName}" class="w-full p-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500" placeholder="Name eingeben">
-                `;
-                playerNamesContainer.appendChild(div);
-            }
-        }
-
-        function loadPlayerNames() {
-            const savedNames = getSavedPlayerNames();
-            if (savedNames.length > 0) {
-                playerCountSelect.value = savedNames.length;
-                setupPlayerInputs(); // Re-populate with saved names
-            } else {
-                setupPlayerInputs(); // Populate with defaults
-            }
-        }
-
-        function savePlayerNames(names) {
-            try {
-                localStorage.setItem(LS_PLAYERS_KEY, JSON.stringify(names));
-            } catch (e) {
-                console.error("Speichern der Spielernamen fehlgeschlagen:", e);
-                displayMessage("Speichern der Namen nicht möglich (LocalStorage voll?).");
-            }
-        }
-
-        function getSavedPlayerNames() {
-            try {
-                const names = localStorage.getItem(LS_PLAYERS_KEY);
-                return names ? JSON.parse(names) : [];
-            } catch (e) {
-                console.error("Laden der Spielernamen fehlgeschlagen:", e);
-                return [];
-            }
-        }
-
-        // --- GAME HISTORY ---
-        function getGameHistory() {
-            try {
-                const history = localStorage.getItem(LS_GAME_HISTORY_KEY);
-                return history ? JSON.parse(history) : [];
-            } catch (e) {
-                console.error("Laden der Spielhistorie fehlgeschlagen:", e);
-                return [];
-            }
-        }
-
-        function saveGameHistory(history) {
-            try {
-                localStorage.setItem(LS_GAME_HISTORY_KEY, JSON.stringify(history));
-            } catch (e) {
-                console.error("Speichern der Spielhistorie fehlgeschlagen:", e);
-                displayMessage("Speichern der Historie nicht möglich (LocalStorage voll?).");
-            }
-        }
-
-        function addGameToHistory(gameResult) {
-            const history = getGameHistory();
-            history.unshift(gameResult); // Add new game to the beginning
-            // Optional: Limit history size
-            // if (history.length > 20) {
-            //     history.pop(); // Remove the oldest game
-            // }
-            saveGameHistory(history);
-        }
-
-        function displayHistory() {
-            const history = getGameHistory();
-            historyContent.innerHTML = ''; // Clear previous content
-
-            if (history.length === 0) {
-                historyContent.innerHTML = '<p class="text-center text-gray-500">Noch keine Spiele gespielt.</p>';
-                gameHistorySection.classList.add('hidden'); // Hide section if empty
-                return;
-            }
-
-            gameHistorySection.classList.remove('hidden'); // Show section if not empty
-
-            const historyList = document.createElement('ul');
-            const winCounts = {}; // { playerName: count }
-
-            history.forEach(game => {
-                const li = document.createElement('li');
-                const dateString = new Date(game.date).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' });
-
-                let playersHtml = game.players.map(p => `${p.name}: ${p.score}`).join(' | ');
-                let winnerHtml = '';
-                if (game.winnerNames.length === 1) {
-                    winnerHtml = `<span class="history-winner">Gewinner: ${game.winnerNames[0]}</span>`;
-                    // Count wins
-                    winCounts[game.winnerNames[0]] = (winCounts[game.winnerNames[0]] || 0) + 1;
-                } else if (game.winnerNames.length > 1) {
-                    winnerHtml = `<span class="history-winner">Unentschieden: ${game.winnerNames.join(' & ')}</span>`;
-                     // Count ties for involved players? Optional. For now, only count single wins.
-                }
-
-
-                li.innerHTML = `
-                    <span class="history-date">${dateString}</span>
-                    <span>${playersHtml}</span><br>
-                    ${winnerHtml}
-                `;
-                historyList.appendChild(li);
-            });
-
-            // Calculate and display stats
-            const statsDiv = document.createElement('div');
-            statsDiv.id = 'historyStats';
-            statsDiv.innerHTML = '<h3>Statistik (Siege)</h3>';
-            const statsList = document.createElement('ul');
-            const sortedWins = Object.entries(winCounts).sort(([,a],[,b]) => b-a); // Sort by win count descending
-
-            if (sortedWins.length > 0) {
-                 sortedWins.forEach(([name, count]) => {
-                    const statLi = document.createElement('li');
-                    statLi.textContent = `${name}: ${count} Sieg${count > 1 ? 'e' : ''}`;
-                    statsList.appendChild(statLi);
-                });
-            } else {
-                 statsList.innerHTML = '<li class="text-gray-500">Noch keine eindeutigen Siege.</li>';
-            }
-
-            statsDiv.appendChild(statsList);
-
-            historyContent.appendChild(document.createElement('h3')).textContent = 'Letzte Spiele';
-            historyContent.appendChild(historyList);
-            historyContent.appendChild(statsDiv);
-        }
-
+        function setupPlayerInputs() { /* unverändert */ console.log("Setting up player inputs..."); const count = parseInt(playerCountSelect.value); playerNamesContainer.innerHTML = ''; const savedNames = getSavedPlayerNames(); for (let i = 0; i < count; i++) { const inputId = `playerName${i + 1}`; const savedName = savedNames[i] || `Spieler ${i + 1}`; const playerColor = playerColors[i % playerColors.length]; const div = document.createElement('div'); div.innerHTML = `<label for="${inputId}" class="flex items-center"><span class="w-4 h-4 rounded-full mr-2 inline-block" style="background-color: ${playerColor}; border: 1px solid grey;"></span> Spieler ${i + 1}:</label><input type="text" id="${inputId}" value="${savedName}" placeholder="Name eingeben">`; playerNamesContainer.appendChild(div); } }
 
         // --- GAME LOGIC ---
-        function startGame() {
-            players = [];
-            const nameInputs = playerNamesContainer.querySelectorAll('input');
-            const playerNames = [];
-            nameInputs.forEach((input, index) => {
-                const name = input.value.trim() || `Spieler ${index + 1}`;
-                players.push({ id: `p${index}`, name: name });
-                playerNames.push(name); // For saving
-            });
-
-            if (players.length === 0) {
-                displayMessage("Bitte mindestens einen Spieler hinzufügen.");
-                return;
-            }
-
-            savePlayerNames(playerNames); // Save names for next time
-
-            // Initialize game state
-            currentPlayerIndex = 0;
-            currentRoll = 0;
-            round = 1;
-            diceValues = Array(NUM_DICE).fill(1);
-            heldDice = Array(NUM_DICE).fill(false);
-            scores = {};
-            ziffarBonus = {};
-            players.forEach(p => {
-                scores[p.id] = {};
-                CATEGORIES.forEach(cat => scores[p.id][cat.id] = null);
-                ziffarBonus[p.id] = 0;
-            });
-            potentialScores = {};
-
-            // Update UI
-            playerSetupSection.classList.add('hidden');
-            gameHistorySection.classList.add('hidden'); // Hide history during game
-            gameArea.classList.remove('hidden');
-            gameOverOverlay.classList.remove('show');
-            gameOverOverlay.classList.add('hidden');
-
-            setupScorecard();
-            updateGameInfo();
-            resetDiceAppearance();
-            renderDice();
-            rollBtn.disabled = false;
-            rollBtn.textContent = "Würfeln";
-            displayMessage(""); // Clear any previous messages
-        }
-
-        function setupScorecard() {
-            const thead = scorecardTable.getElementsByTagName('thead')[0].rows[0];
-            const tbody = scorecardBody;
-            const tfoot = scorecardFoot;
-
-            // Clear existing headers/rows
-            while (thead.cells.length > 1) thead.deleteCell(1);
-            tbody.innerHTML = '';
-            tfoot.innerHTML = '';
-
-            // Add player headers
-            players.forEach((player, index) => {
-                const th = document.createElement('th');
-                th.scope = 'col';
-                th.className = 'px-4 py-3 text-center player-header align-top'; // Align top
-                th.textContent = player.name;
-                th.dataset.playerId = player.id;
-                thead.appendChild(th);
-            });
-
-            // Add score rows
-            let currentSection = '';
-            CATEGORIES.forEach(cat => {
-                // Add section separators
-                if (cat.section !== currentSection) {
-                    currentSection = cat.section;
-                    const sepRow = tbody.insertRow();
-                    sepRow.className = 'bg-gray-50 font-semibold';
-                    const sepCell = sepRow.insertCell();
-                    sepCell.colSpan = players.length + 1;
-                    sepCell.className = 'px-4 py-2 text-indigo-700';
-                    sepCell.textContent = currentSection === 'upper' ? 'Oberer Teil' : 'Unterer Teil';
-                }
-
-                const row = tbody.insertRow();
-                row.dataset.categoryId = cat.id;
-                const nameCell = row.insertCell();
-                // **Tooltip Change:** Use description span
-                nameCell.className = 'px-4 py-2 font-medium text-gray-900 whitespace-nowrap sticky left-0 bg-white z-10 align-top';
-                nameCell.innerHTML = `
-                    ${cat.name}
-                    <span class="category-description">${cat.description}</span>
-                `;
-
-                players.forEach(player => {
-                    const scoreCell = row.insertCell();
-                    scoreCell.className = 'px-4 py-2 text-center score-cell available align-middle'; // Align middle
-                    scoreCell.dataset.playerId = player.id;
-                    scoreCell.dataset.categoryId = cat.id;
-                    scoreCell.textContent = '-'; // Placeholder
-                    scoreCell.setAttribute('aria-label', `Punkte für ${cat.name} für ${player.name} eintragen`);
-                    scoreCell.setAttribute('role', 'button');
-                    scoreCell.tabIndex = 0; // Make it focusable
-                });
-            });
-
-             // Add Upper Bonus Row
-            const bonusRow = tbody.insertRow();
-            bonusRow.id = 'upperBonusRow';
-            const bonusNameCell = bonusRow.insertCell();
-            // **Tooltip Change:** Use description span
-            bonusNameCell.className = 'px-4 py-2 font-medium text-gray-900 whitespace-nowrap sticky left-0 bg-white z-10 align-top';
-            bonusNameCell.innerHTML = `
-                Bonus <span class="text-xs font-normal">(ab ${UPPER_BONUS_THRESHOLD} P.)</span>
-                <span class="category-description">Bei ${UPPER_BONUS_THRESHOLD}+ P. oben: ${UPPER_BONUS_POINTS} extra.</span>
-            `;
-            players.forEach(player => {
-                const bonusCell = bonusRow.insertCell();
-                bonusCell.className = 'px-4 py-2 text-center font-semibold align-middle';
-                bonusCell.dataset.playerId = player.id;
-                bonusCell.id = `upperBonus-${player.id}`;
-                bonusCell.textContent = '0';
-            });
-
-            // Add Upper Total Row
-            const upperTotalRow = tbody.insertRow();
-            upperTotalRow.id = 'upperTotalRow';
-            const upperTotalNameCell = upperTotalRow.insertCell();
-            upperTotalNameCell.className = 'px-4 py-2 font-semibold text-gray-900 whitespace-nowrap sticky left-0 bg-white z-10 align-middle';
-            upperTotalNameCell.textContent = 'Summe Oben';
-            players.forEach(player => {
-                const upperTotalCell = upperTotalRow.insertCell();
-                upperTotalCell.className = 'px-4 py-2 text-center font-semibold align-middle';
-                upperTotalCell.dataset.playerId = player.id;
-                upperTotalCell.id = `upperTotal-${player.id}`;
-                upperTotalCell.textContent = '0';
-            });
-
-            // Add Ziffar Bonus Row
-             const ziffarBonusRow = tbody.insertRow();
-             ziffarBonusRow.id = 'ziffarBonusRow';
-             const ziffarBonusNameCell = ziffarBonusRow.insertCell();
-             // **Tooltip Change:** Use description span
-             ziffarBonusNameCell.className = 'px-4 py-2 font-medium text-gray-900 whitespace-nowrap sticky left-0 bg-white z-10 align-top';
-             ziffarBonusNameCell.innerHTML = `
-                Ziffar Bonus
-                <span class="category-description">Pro weiterem Ziffar: ${ZIFFAR_BONUS_POINTS} extra.</span>
-             `;
-             players.forEach(player => {
-                 const cell = ziffarBonusRow.insertCell();
-                 cell.className = 'px-4 py-2 text-center font-semibold align-middle';
-                 cell.dataset.playerId = player.id;
-                 cell.id = `ziffarBonus-${player.id}`;
-                 cell.textContent = '0';
-             });
-
-
-            // Add Footer Total Row
-            const totalRow = tfoot.insertRow();
-            totalRow.className = 'bg-indigo-100';
-            const totalNameCell = totalRow.insertCell();
-            totalNameCell.className = 'px-4 py-3 font-bold text-indigo-800 sticky left-0 bg-indigo-100 z-10 align-middle';
-            totalNameCell.textContent = 'Gesamtpunktzahl';
-            players.forEach(player => {
-                const totalCell = totalRow.insertCell();
-                totalCell.className = 'px-4 py-3 text-center font-bold text-indigo-800 align-middle';
-                totalCell.dataset.playerId = player.id;
-                totalCell.id = `totalScore-${player.id}`;
-                totalCell.textContent = '0';
-            });
-        }
-
-        function updateGameInfo() {
-            const currentPlayer = players[currentPlayerIndex];
-            currentPlayerNameSpan.textContent = currentPlayer.name;
-            rollsLeftSpan.textContent = MAX_ROLLS - currentRoll;
-            currentRoundSpan.textContent = round;
-
-            // Highlight current player's column
-            document.querySelectorAll('.player-header, .score-cell, tfoot td, #upperBonusRow td, #upperTotalRow td, #ziffarBonusRow td').forEach(cell => {
-                 cell.classList.remove('current-player-column');
-                 if(cell.dataset.playerId === currentPlayer.id) {
-                     cell.classList.add('current-player-column');
-                 }
-            });
-             // Highlight current player's header specifically
-            document.querySelectorAll('thead th.player-header').forEach(th => {
-                 th.classList.remove('current-player-column'); // Remove specific header highlight class if needed elsewhere
-                 if(th.dataset.playerId === currentPlayer.id) {
-                    th.classList.add('current-player-column'); // Add specific header highlight class
-                 }
-            });
-
-
-        }
-
-        function rollDice() {
-            if (currentRoll >= MAX_ROLLS) return;
-
-            displayMessage(""); // Clear previous messages
-            currentRoll++;
-            const diceElements = diceContainer.querySelectorAll('.dice');
-
-            diceValues.forEach((_, i) => {
-                if (!heldDice[i]) {
-                    diceValues[i] = Math.floor(Math.random() * 6) + 1;
-                    // Add rolling animation class
-                    const dieElement = diceElements[i];
-                    dieElement.classList.add('rolling');
-                    // Remove the class after animation ends
-                     setTimeout(() => {
-                        dieElement.classList.remove('rolling');
-                    }, 500); // Match animation duration
-                }
-            });
-
-            renderDice();
-            updateGameInfo();
-            calculatePotentialScores();
-            renderPotentialScores();
-
-
-            if (currentRoll === MAX_ROLLS) {
-                rollBtn.disabled = true;
-                rollBtn.textContent = "Wähle Kategorie";
-                displayMessage("Letzter Wurf! Wähle eine Kategorie.", "info");
-            } else {
-                 rollBtn.textContent = `Würfeln (${MAX_ROLLS - currentRoll} übrig)`;
-            }
-        }
-
-        function renderDice() {
-            diceContainer.innerHTML = ''; // Clear existing dice
-            diceValues.forEach((value, index) => {
+        function startGame() { /* unverändert */ console.log("Starting game..."); try { players = []; const nameInputs = playerNamesContainer.querySelectorAll('input'); const playerNamesToSave = []; nameInputs.forEach((input, index) => { const name = input.value.trim() || `Spieler ${index + 1}`; const color = playerColors[index % playerColors.length]; const player = { id: `p${index}`, name: name, color: color, theme: null }; players.push(player); playerNamesToSave.push(name); }); if (players.length === 0) { displayMessage("Bitte mindestens einen Spieler hinzufügen."); return; } savePlayerNames(playerNamesToSave); currentPlayerIndex = 0; currentRoll = 0; round = 1; diceValues = Array(NUM_DICE).fill(1); heldDice = Array(NUM_DICE).fill(false); scores = {}; ziffarBonus = {}; players.forEach(p => { scores[p.id] = {}; CATEGORIES.forEach(cat => scores[p.id][cat.id] = null); ziffarBonus[p.id] = 0; }); potentialScores = {}; playerSetupSection.classList.add('hidden'); gameHistorySection.classList.add('hidden'); gameArea.classList.remove('hidden'); gameOverOverlay.classList.remove('show'); gameOverOverlay.classList.add('hidden'); setupScorecard(); applyPlayerTheme(); updateGameInfo(); resetDiceAppearance(); if (rollBtn) { rollBtn.disabled = false; rollBtn.textContent = "Würfeln"; rollBtn.className = 'btn btn-primary'; } displayMessage(""); console.log("Game started successfully."); } catch (error) { console.error("FEHLER beim Starten des Spiels:", error); alert("Spiel konnte nicht gestartet werden. Fehlerdetails in der Konsole."); } }
+        function setupScorecard() { /* unverändert */ console.log("Setting up scorecard..."); if (!scorecardTable || !scorecardBody || !scorecardFoot) { console.error("Scorecard table, body, or foot not found!"); return; } const thead = scorecardTable.querySelector('thead tr'); if (!thead) return; const tbody = scorecardBody; const tfoot = scorecardFoot; while (thead.cells.length > 1) thead.deleteCell(1); tbody.innerHTML = ''; tfoot.innerHTML = ''; players.forEach((player) => { const th = document.createElement('th'); th.scope = 'col'; th.textContent = player.name; th.className = 'px-4 py-3 text-center player-header align-top'; th.dataset.playerId = player.id; thead.appendChild(th); }); let currentSection = ''; CATEGORIES.forEach(cat => { if (cat.section !== currentSection) { currentSection = cat.section; const sepRow = tbody.insertRow(); sepRow.className = 'score-section-header'; const sepCell = sepRow.insertCell(); sepCell.colSpan = players.length + 1; sepCell.textContent = currentSection === 'upper' ? 'Oberer Teil' : 'Unterer Teil'; sepCell.classList.add('sticky', 'left-0', 'z-10'); } const row = tbody.insertRow(); row.dataset.categoryId = cat.id; const nameCell = row.insertCell(); nameCell.className = 'px-4 py-2 font-medium whitespace-nowrap sticky left-0 bg-inherit z-10 align-top'; nameCell.innerHTML = `${cat.name}<span class="category-description">${cat.description}</span>`; players.forEach(player => { const scoreCell = row.insertCell(); scoreCell.className = 'px-4 py-2 text-center score-cell available align-middle'; scoreCell.dataset.playerId = player.id; scoreCell.dataset.categoryId = cat.id; scoreCell.textContent = '-'; scoreCell.setAttribute('aria-label', `Punkte für ${cat.name} für ${player.name} eintragen`); scoreCell.setAttribute('role', 'button'); scoreCell.tabIndex = 0; }); }); const summaryRowsData = [{ id: 'upperBonusRow', nameHtml: `Bonus <span class="text-xs font-normal">(ab ${UPPER_BONUS_THRESHOLD} P.)</span><span class="category-description">Bei ${UPPER_BONUS_THRESHOLD}+ P. oben: ${UPPER_BONUS_POINTS} extra.</span>`, dataAttr: 'upperBonus', class: 'font-semibold' }, { id: 'upperTotalRow', nameHtml: `Summe Oben`, dataAttr: 'upperTotal', class: 'font-semibold' }, { id: 'ziffarBonusRow', nameHtml: `Ziffar Bonus<span class="category-description">Pro weiterem Ziffar: ${ZIFFAR_BONUS_POINTS} extra.</span>`, dataAttr: 'ziffarBonus', class: 'font-semibold' }]; summaryRowsData.forEach(rowData => { const row = tbody.insertRow(); row.id = rowData.id; const nameCell = row.insertCell(); nameCell.className = `px-4 py-2 font-medium whitespace-nowrap sticky left-0 bg-inherit z-10 align-top ${rowData.class}`; nameCell.innerHTML = rowData.nameHtml; players.forEach(player => { const cell = row.insertCell(); cell.className = `px-4 py-2 text-center align-middle ${rowData.class}`; cell.dataset.playerId = player.id; cell.id = `${rowData.dataAttr}-${player.id}`; cell.textContent = '0'; }); }); const totalRow = tfoot.insertRow(); const totalNameCell = totalRow.insertCell(); totalNameCell.className = 'px-4 py-3 font-bold sticky left-0 bg-inherit z-10 align-middle'; totalNameCell.textContent = 'Gesamtpunktzahl'; players.forEach(player => { const totalCell = totalRow.insertCell(); totalCell.className = 'px-4 py-3 text-center font-bold align-middle'; totalCell.dataset.playerId = player.id; totalCell.id = `totalScore-${player.id}`; totalCell.textContent = '0'; }); console.log("Scorecard setup complete."); }
+        function updateGameInfo() { /* unverändert */ if (!players || players.length === 0 || !currentPlayerNameSpan || !rollsLeftSpan || !currentRoundSpan) return; const currentPlayer = players[currentPlayerIndex]; if (!currentPlayer) return; currentPlayerNameSpan.textContent = currentPlayer.name; rollsLeftSpan.textContent = MAX_ROLLS - currentRoll; currentRoundSpan.textContent = round; document.querySelectorAll('#scorecard .player-header, #scorecard .score-cell, #scorecard tfoot td, #scorecard #upperBonusRow td, #scorecard #upperTotalRow td, #scorecard #ziffarBonusRow td').forEach(cell => cell.classList.remove('current-player-column')); document.querySelectorAll(`#scorecard [data-player-id="${currentPlayer.id}"]`).forEach(cell => cell.classList.add('current-player-column')); }
+        function nextTurn() { /* unverändert */ console.log("Moving to next turn..."); currentPlayerIndex = (currentPlayerIndex + 1) % players.length; currentRoll = 0; heldDice.fill(false); potentialScores = {}; if (currentPlayerIndex === 0) round++; if (round > CATEGORIES.length) { endGame(); } else { applyPlayerTheme(); updateGameInfo(); resetDiceAppearance(); if (rollBtn) { rollBtn.disabled = false; rollBtn.textContent = "Würfeln"; rollBtn.className = 'btn btn-primary'; } displayMessage(""); clearPotentialScores(true); } }
+        function endGame() { /* unverändert */ console.log("Ending game..."); if (rollBtn) { rollBtn.disabled = true; rollBtn.className = 'btn btn-primary'; } displayMessage("Spiel vorbei!", "info"); let winningScore = -1; let winners = []; const finalPlayerData = []; const finalScoresHTML = players.map(player => { const totalScoreCell = document.getElementById(`totalScore-${player.id}`); const score = parseInt(totalScoreCell?.textContent || '0'); finalPlayerData.push({ name: player.name, score: score }); if (score > winningScore) { winningScore = score; winners = [player.name]; } else if (score === winningScore) { winners.push(player.name); } return `<p class="flex justify-between"><span class="font-semibold">${player.name}:</span> <span>${score} Punkte</span></p>`; }).join(''); if (finalScoresDiv) finalScoresDiv.innerHTML = finalScoresHTML; if (winnerMessage) { if (winners.length === 1) { winnerMessage.textContent = `${winners[0]} hat gewonnen! ✨`; } else if (winners.length > 1) { winnerMessage.textContent = `Unentschieden zwischen ${winners.join(' & ')}!`; } else { winnerMessage.textContent = `Kein Gewinner? 🤔`; } } const gameResult = { date: new Date().toISOString(), players: finalPlayerData, winnerNames: winners }; addGameToHistory(gameResult); if (gameOverOverlay) { gameOverOverlay.classList.remove('hidden'); gameOverOverlay.classList.add('show'); } }
+        function restartGame() { /* unverändert */ console.log("Restarting game..."); if (gameOverOverlay) { gameOverOverlay.classList.remove('show'); gameOverOverlay.classList.add('hidden'); } if (gameArea) gameArea.classList.add('hidden'); if (playerSetupSection) playerSetupSection.classList.remove('hidden'); if (gameHistorySection) gameHistorySection.classList.remove('hidden'); loadPlayerNames(); displayHistory(); if (players.length > 0) { applyPlayerTheme(); } else { applyThemeVariables(generateThemeColors(playerColors[0], isDarkMode)); } }
+        function renderPotentialScores() { /* unverändert */ if (!scorecardBody || !players || players.length === 0) return; clearPotentialScores(false); const currentPlayer = players[currentPlayerIndex]; if (!currentPlayer) return; const defaultAriaLabel = (catName) => `Punkte für ${catName} für ${currentPlayer.name} eintragen`; /*console.log("Rendering potential scores:", potentialScores);*/ Object.entries(potentialScores).forEach(([categoryId, score]) => { if (score !== null) { const cell = scorecardBody.querySelector(`.score-cell[data-player-id="${currentPlayer.id}"][data-category-id="${categoryId}"]`); if (cell && !cell.classList.contains('filled')) { cell.textContent = score; /*console.log(`Rendering: Cell ${categoryId}, Score: ${score}`);*/ const catName = CATEGORIES.find(c => c.id === categoryId)?.name || categoryId; if (score > 0) { cell.classList.add('potential'); cell.setAttribute('aria-label', `Mögliche Punkte für ${catName}: ${score}. Klicken zum Eintragen.`); } else { cell.classList.remove('potential'); cell.setAttribute('aria-label', defaultAriaLabel(catName)); } } } }); }
+        function clearPotentialScores(clearAllPlayers = false) { /* unverändert */ if (!scorecardBody || !players || players.length === 0) return; const targetPlayerIds = clearAllPlayers ? players.map(p => p.id) : (players[currentPlayerIndex] ? [players[currentPlayerIndex].id] : []); if (targetPlayerIds.length === 0) return; /*console.log("Clearing potential scores for players:", targetPlayerIds);*/ targetPlayerIds.forEach(playerId => { const player = players.find(p => p.id === playerId); const playerName = player ? player.name : ''; const availableCells = scorecardBody.querySelectorAll(`.score-cell[data-player-id="${playerId}"]:not(.filled)`); availableCells.forEach(cell => { cell.classList.remove('potential'); cell.textContent = '-'; const categoryId = cell.dataset.categoryId; const catName = CATEGORIES.find(c => c.id === categoryId)?.name || categoryId; cell.setAttribute('aria-label', `Punkte für ${catName} für ${playerName} eintragen`); }); }); }
+        function getGameHistory() { /* unverändert */ try { const history = localStorage.getItem(LS_GAME_HISTORY_KEY); return history ? JSON.parse(history) : []; } catch (e) { console.error("Laden der Spielhistorie fehlgeschlagen:", e); return []; } }
+        function saveGameHistory(history) { /* unverändert */ try { localStorage.setItem(LS_GAME_HISTORY_KEY, JSON.stringify(history)); } catch (e) { console.error("Speichern der Spielhistorie fehlgeschlagen:", e); displayMessage("Speichern der Historie nicht möglich."); } }
+        function addGameToHistory(gameResult) { /* unverändert */ const history = getGameHistory(); history.unshift(gameResult); saveGameHistory(history); }
+        function displayHistory() { /* unverändert */ if (!historyContent || !gameHistorySection) return; const history = getGameHistory(); historyContent.innerHTML = ''; if (history.length === 0) { historyContent.innerHTML = '<p class="text-center text-on-surface-variant">Noch keine Spiele gespielt.</p>'; gameHistorySection.classList.remove('hidden'); return; } gameHistorySection.classList.remove('hidden'); const historyList = document.createElement('ul'); const winCounts = {}; history.forEach(game => { const li = document.createElement('li'); const dateString = new Date(game.date).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' }); let playersHtml = game.players.map(p => `${p.name}: ${p.score}`).join(' | '); let winnerHtml = ''; if (game.winnerNames.length === 1) { winnerHtml = `<span class="history-winner">Gewinner: ${game.winnerNames[0]}</span>`; winCounts[game.winnerNames[0]] = (winCounts[game.winnerNames[0]] || 0) + 1; } else if (game.winnerNames.length > 1) { winnerHtml = `<span class="history-winner">Unentschieden: ${game.winnerNames.join(' & ')}</span>`; } li.innerHTML = `<span class="history-date">${dateString}</span><span>${playersHtml}</span><br>${winnerHtml}`; historyList.appendChild(li); }); const statsDiv = document.createElement('div'); statsDiv.id = 'historyStats'; statsDiv.innerHTML = '<h3>Statistik (Siege)</h3>'; const statsList = document.createElement('ul'); const sortedWins = Object.entries(winCounts).sort(([, a], [, b]) => b - a); if (sortedWins.length > 0) { sortedWins.forEach(([name, count]) => { const statLi = document.createElement('li'); statLi.textContent = `${name}: ${count} Sieg${count > 1 ? 'e' : ''}`; statsList.appendChild(statLi); }); } else { statsList.innerHTML = '<li class="text-on-surface-variant">Noch keine eindeutigen Siege.</li>'; } statsDiv.appendChild(statsList); historyContent.appendChild(historyList); historyContent.appendChild(statsDiv); }
+        function renderDice() { /* unverändert */ if (!diceContainer) return; diceContainer.innerHTML = ''; diceValues.forEach((value, index) => { const die = document.createElement('div'); die.className = 'dice'; die.dataset.index = index; die.dataset.value = value; die.setAttribute('aria-label', `Würfel ${index + 1} zeigt ${value}${heldDice[index] ? ', gehalten' : ''}`); die.setAttribute('role', 'button'); die.tabIndex = 0; if (heldDice[index]) { die.classList.add('held'); } die.innerHTML = `<span class="pip top-left"></span><span class="pip top-right"></span><span class="pip middle-left"></span><span class="pip center"></span><span class="pip middle-right"></span><span class="pip bottom-left"></span><span class="pip bottom-right"></span>`; diceContainer.appendChild(die); }); }
+        function resetDiceAppearance() {
+            /* unverändert */ if (!diceContainer) return;
+            diceContainer.innerHTML = '';
+            diceValues.fill(1);
+            heldDice.fill(false);
+            for (let i = 0; i < NUM_DICE; i++) {
                 const die = document.createElement('div');
                 die.className = 'dice';
-                die.dataset.index = index;
-                die.dataset.value = value;
-                die.setAttribute('aria-label', `Würfel ${index + 1} zeigt ${value}${heldDice[index] ? ', gehalten' : ''}`);
-                die.setAttribute('role', 'button'); // Make it interactive
-                die.tabIndex = 0; // Make focusable
+                die.dataset.index = i;
+                die.dataset.value = 1; // Startet korrekt mit Wert 1
+                die.setAttribute('aria-label', `Würfel ${i + 1} zeigt 1`);
+                die.setAttribute('role', 'button');
+                die.tabIndex = 0;
+                // Die 7 Pip-Elemente erstellen
+                die.innerHTML = `<span class="pip top-left"></span><span class="pip top-right"></span><span class="pip middle-left"></span><span class="pip center"></span><span class="pip middle-right"></span><span class="pip bottom-left"></span><span class="pip bottom-right"></span>`;
 
+                // --- ENTFERNT ---
+                // const centerPip = die.querySelector('.pip.center');
+                // if (centerPip) {
+                //     centerPip.style.display = 'block'; // <-- Das war der Übeltäter
+                //     centerPip.style.gridArea = 'g';     // <-- Auch nicht nötig, CSS macht das
+                // }
+                // --- ENDE ENTFERNT ---
 
-                if (heldDice[index]) {
-                    die.classList.add('held');
-                }
-
-                // Add pips
-                die.innerHTML = `
-                    <span class="pip top-left"></span><span class="pip top-right"></span>
-                    <span class="pip middle-left"></span><span class="pip center"></span><span class="pip middle-right"></span>
-                    <span class="pip bottom-left"></span><span class="pip bottom-right"></span>
-                `;
                 diceContainer.appendChild(die);
-            });
-        }
-
-        // Resets dice to initial state visually before first roll
-        function resetDiceAppearance() {
-             diceContainer.innerHTML = '';
-             for (let i = 0; i < NUM_DICE; i++) {
-                 const die = document.createElement('div');
-                 die.className = 'dice';
-                 die.dataset.index = i;
-                 die.dataset.value = 1; // Start with 1 visually
-                 die.setAttribute('aria-label', `Würfel ${i + 1} zeigt 1`);
-                 die.setAttribute('role', 'button');
-                 die.tabIndex = 0;
-                 die.innerHTML = `
-                    <span class="pip top-left"></span><span class="pip top-right"></span>
-                    <span class="pip middle-left"></span><span class="pip center"></span><span class="pip middle-right"></span>
-                    <span class="pip bottom-left"></span><span class="pip bottom-right"></span>
-                 `;
-                 diceContainer.appendChild(die);
-             }
-        }
-
-
-        function toggleHoldDice(event) {
-            const die = event.target.closest('.dice');
-            if (!die || currentRoll === 0) return; // Can't hold before first roll
-
-            const index = parseInt(die.dataset.index);
-            heldDice[index] = !heldDice[index];
-            die.classList.toggle('held');
-            // Update aria-label
-             const value = die.dataset.value;
-             die.setAttribute('aria-label', `Würfel ${index + 1} zeigt ${value}${heldDice[index] ? ', gehalten' : ''}`);
-
-        }
-
-        function handleScorecardClick(event) {
-            const cell = event.target.closest('.score-cell');
-            if (!cell || currentRoll === 0) {
-                 if(currentRoll === 0) displayMessage("Du musst zuerst würfeln!");
-                 return; // Ignore clicks if not rolled yet or not on a cell
             }
+            // Die CSS Regeln [.dice[data-value="1"] .pip.center] sorgen jetzt
+            // dafür, dass der mittlere Punkt für den Startwert 1 korrekt angezeigt wird.
+        }
+        function toggleHoldDice(event) { /* unverändert */ const die = event.target.closest('.dice'); if (!die || currentRoll === 0) return; const index = parseInt(die.dataset.index); heldDice[index] = !heldDice[index]; die.classList.toggle('held'); const value = die.dataset.value; die.setAttribute('aria-label', `Würfel ${index + 1} zeigt ${value}${heldDice[index] ? ', gehalten' : ''}`); }
+        function handleScorecardClick(event) { /* unverändert */ const cell = event.target.closest('.score-cell'); if (!cell) return; if (currentRoll === 0) { if (!cell.classList.contains('filled')) displayMessage("Du musst zuerst würfeln!"); return; } const playerId = cell.dataset.playerId; const categoryId = cell.dataset.categoryId; if (!players || players.length === 0) return; const currentPlayer = players[currentPlayerIndex]; if (!currentPlayer) return; if (playerId !== currentPlayer.id) { displayMessage("Warte, bis du dran bist!"); return; } if (scores[playerId]?.[categoryId] !== null) { displayMessage("Diese Kategorie wurde bereits gewählt."); return; } const score = potentialScores[categoryId] ?? calculateScoreForCategory(categoryId, diceValues); scores[playerId][categoryId] = score; const isZiffar = checkZiffar(diceValues); if (categoryId === 'ziffar' && isZiffar) { ziffarBonus[playerId]++; } else if (isZiffar && scores[playerId]?.['ziffar'] !== null && scores[playerId]['ziffar'] > 0) { ziffarBonus[playerId]++; displayMessage(`Zusätzlicher Ziffar! ${ZIFFAR_BONUS_POINTS} Bonuspunkte!`, "info"); } else if (categoryId !== 'ziffar' && isZiffar && scores[playerId]?.['ziffar'] === 0) { const upperCategoryForZiffarVal = diceValues[0]; const upperCategoryMap = ['ones', 'twos', 'threes', 'fours', 'fives', 'sixes']; const upperCategoryId = upperCategoryMap[upperCategoryForZiffarVal - 1]; if (scores[playerId]?.[upperCategoryId] === null && categoryId !== upperCategoryId) { if (ziffarBonus[playerId] >= 1) { ziffarBonus[playerId]++; displayMessage(`Ziffar Joker! ${ZIFFAR_BONUS_POINTS} Bonuspunkte!`, "info"); } } } updateScorecard(); clearPotentialScores(true); nextTurn(); }
+        function updateScorecard() { /* unverändert */ if (!scorecardBody || !players || players.length === 0) return; players.forEach(player => { if (!player) return; let upperScore = 0; let lowerScore = 0; let hasBonus = false; CATEGORIES.forEach(cat => { const score = scores[player.id]?.[cat.id]; const cell = scorecardBody.querySelector(`.score-cell[data-player-id="${player.id}"][data-category-id="${cat.id}"]`); if (cell) { if (score !== null) { cell.textContent = score; cell.classList.remove('available', 'potential'); cell.classList.add('filled'); cell.removeAttribute('role'); cell.removeAttribute('tabindex'); const catName = CATEGORIES.find(c => c.id === cat.id)?.name || cat.id; cell.setAttribute('aria-label', `${catName} für ${player.name}: ${score} Punkte`); if (cat.section === 'upper') upperScore += score; else lowerScore += score; } else { if (!cell.classList.contains('potential')) { cell.textContent = '-'; } cell.classList.remove('filled'); cell.classList.add('available'); cell.setAttribute('role', 'button'); cell.tabIndex = 0; const catName = CATEGORIES.find(c => c.id === cat.id)?.name || cat.id; cell.setAttribute('aria-label', `Punkte für ${catName} für ${player.name} eintragen`); } } }); const upperTotalCell = document.getElementById(`upperTotal-${player.id}`); if (upperTotalCell) upperTotalCell.textContent = upperScore; const upperBonusCell = document.getElementById(`upperBonus-${player.id}`); if (upperBonusCell) { hasBonus = upperScore >= UPPER_BONUS_THRESHOLD; upperBonusCell.textContent = hasBonus ? UPPER_BONUS_POINTS : '0'; } const ziffarBonusCell = document.getElementById(`ziffarBonus-${player.id}`); const currentZiffarBonusPoints = (ziffarBonus[player.id] > 1 ? (ziffarBonus[player.id] - 1) : 0) * ZIFFAR_BONUS_POINTS; if (ziffarBonusCell) { ziffarBonusCell.textContent = currentZiffarBonusPoints; } const totalScoreCell = document.getElementById(`totalScore-${player.id}`); if (totalScoreCell) { const bonusPoints = hasBonus ? UPPER_BONUS_POINTS : 0; totalScoreCell.textContent = upperScore + bonusPoints + lowerScore + currentZiffarBonusPoints; } }); }
+        function displayMessage(msg, type = "error") { /* unverändert */ if (!gameMessage) return; gameMessage.textContent = msg; gameMessage.className = `mt-4 text-center font-medium h-6 ${type === 'error' ? 'text-error' : 'text-secondary'}`; gameMessage.setAttribute('role', 'alert'); gameMessage.setAttribute('aria-live', 'assertive'); }
+        function countDice(dice) { /* unverändert */ const counts = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 }; dice.forEach(d => { if (d >= 1 && d <= 6) counts[d]++; }); return counts; }
+        function checkZiffar(dice) { /* unverändert */ if (!dice || dice.length !== NUM_DICE || dice.some(d => d === undefined || d === null)) return false; const first = dice[0]; return dice.every(d => d === first); }
+        function renderSingleDie(dieElement, value, isHeld) {
+            if (!dieElement) return;
+            dieElement.dataset.value = value; // Wichtig: Wert aktualisieren
+            dieElement.classList.toggle('held', isHeld); // Haltungsstatus
+            dieElement.setAttribute('aria-label', `Würfel ${parseInt(dieElement.dataset.index) + 1} zeigt ${value}${isHeld ? ', gehalten' : ''}`);
 
-            const playerId = cell.dataset.playerId;
-            const categoryId = cell.dataset.categoryId;
-            const currentPlayer = players[currentPlayerIndex];
-
-            if (playerId !== currentPlayer.id) {
-                displayMessage("Warte, bis du dran bist!");
-                return;
-            }
-
-            if (scores[playerId][categoryId] !== null) {
-                displayMessage("Diese Kategorie wurde bereits gewählt.");
-                return;
-            }
-
-            // Score the category using the potential score if available, otherwise calculate
-            const score = potentialScores[categoryId] !== undefined ? potentialScores[categoryId] : calculateScoreForCategory(categoryId, diceValues);
-            scores[playerId][categoryId] = score;
-
-             // Ziffar Bonus Logic
-             const isZiffar = checkZiffar(diceValues);
-             if (categoryId === 'ziffar' && isZiffar) {
-                 ziffarBonus[playerId]++;
-             } else if (isZiffar && scores[playerId]['ziffar'] !== null && scores[playerId]['ziffar'] > 0) {
-                 // If it's a Ziffar, and the Ziffar category is already filled with a Ziffar score
-                 ziffarBonus[playerId]++;
-                 // Check if the corresponding upper category is available as a Joker rule
-                 const upperCategoryForZiffar = ['ones', 'twos', 'threes', 'fours', 'fives', 'sixes'][diceValues[0] - 1];
-                 if (scores[playerId][upperCategoryForZiffar] === null) {
-                     // Optional: Joker rule implementation could go here
-                 }
-                 displayMessage(`Zusätzlicher Ziffar! ${ZIFFAR_BONUS_POINTS} Bonuspunkte!`, "info");
-             }
-
-
-            updateScorecard();
-            clearPotentialScores(); // Clear potentials before moving turn
-            nextTurn();
+            // Pips basierend auf dem neuen 'data-value' via CSS neu anzeigen lassen.
+            // Die CSS-Regeln kümmern sich darum. Du musst hier nicht manuell 'display: block' setzen.
+            // Stelle sicher, dass die CSS-Regeln wie .dice[data-value="1"] .pip.center etc. korrekt sind.
         }
 
-        function updateScorecard() {
-            players.forEach(player => {
-                let upperScore = 0;
-                let lowerScore = 0;
-                let hasBonus = false;
-
-                // Update individual cells and calculate upper score
-                CATEGORIES.forEach(cat => {
-                    const score = scores[player.id][cat.id];
-                    const cell = scorecardBody.querySelector(`.score-cell[data-player-id="${player.id}"][data-category-id="${cat.id}"]`);
-                    if (cell) {
-                        if (score !== null) {
-                            cell.textContent = score;
-                            cell.classList.remove('available', 'potential');
-                            cell.classList.add('filled');
-                            cell.removeAttribute('role'); // No longer interactive
-                            cell.removeAttribute('tabindex');
-                            cell.setAttribute('aria-label', `${CATEGORIES.find(c=>c.id===cat.id).name} für ${player.name}: ${score} Punkte`);
-
-                            if (cat.section === 'upper') {
-                                upperScore += score;
-                            } else {
-                                lowerScore += score;
-                            }
-                        } else {
-                             // Ensure cells for the current player that are not filled or potential reset correctly
-                             if (player.id === players[currentPlayerIndex].id && !cell.classList.contains('potential')) {
-                                cell.textContent = '-';
-                             } else if (player.id !== players[currentPlayerIndex].id) {
-                                 cell.textContent = '-'; // Reset for other players too
-                             }
-                             // Keep 'available' class, remove others if necessary
-                             cell.classList.remove('filled', 'potential');
-                             cell.classList.add('available');
-                             cell.setAttribute('role', 'button');
-                             cell.tabIndex = 0;
-                             cell.setAttribute('aria-label', `Punkte für ${CATEGORIES.find(c=>c.id===cat.id).name} für ${player.name} eintragen`);
-                        }
-                    }
-                });
-
-                // Update Upper Total
-                const upperTotalCell = document.getElementById(`upperTotal-${player.id}`);
-                if (upperTotalCell) upperTotalCell.textContent = upperScore;
-
-                // Update Upper Bonus
-                const upperBonusCell = document.getElementById(`upperBonus-${player.id}`);
-                if (upperBonusCell) {
-                    hasBonus = upperScore >= UPPER_BONUS_THRESHOLD;
-                    upperBonusCell.textContent = hasBonus ? UPPER_BONUS_POINTS : '0';
-                }
-
-                 // Update Ziffar Bonus
-                 const ziffarBonusCell = document.getElementById(`ziffarBonus-${player.id}`);
-                 const currentZiffarBonus = (ziffarBonus[player.id] > 1 ? (ziffarBonus[player.id] -1) : 0) * ZIFFAR_BONUS_POINTS;
-                 if (ziffarBonusCell) {
-                     ziffarBonusCell.textContent = currentZiffarBonus;
-                 }
-
-
-                // Update Total Score
-                const totalScoreCell = document.getElementById(`totalScore-${player.id}`);
-                if (totalScoreCell) {
-                    const bonusPoints = hasBonus ? UPPER_BONUS_POINTS : 0;
-                    totalScoreCell.textContent = upperScore + bonusPoints + lowerScore + currentZiffarBonus;
-                }
-            });
-        }
-
-
-        function calculatePotentialScores() {
-             potentialScores = {};
-             const currentPlayer = players[currentPlayerIndex];
-             CATEGORIES.forEach(cat => {
-                 if (scores[currentPlayer.id][cat.id] === null) { // Only calculate for available categories
-                     potentialScores[cat.id] = calculateScoreForCategory(cat.id, diceValues);
-                 } else {
-                     potentialScores[cat.id] = null; // Mark as not calculable
-                 }
-             });
-        }
-
-        function renderPotentialScores() {
-            clearPotentialScores(); // Clear previous potential scores first
-            const currentPlayer = players[currentPlayerIndex];
-            const defaultAriaLabel = (catName) => `Punkte für ${catName} für ${currentPlayer.name} eintragen`;
-
-            Object.entries(potentialScores).forEach(([categoryId, score]) => {
-                if (score !== null) { // Score is calculable (category available)
-                    const cell = scorecardBody.querySelector(`.score-cell[data-player-id="${currentPlayer.id}"][data-category-id="${categoryId}"]`);
-                    if (cell && !cell.classList.contains('filled')) {
-                        cell.textContent = score; // Show the potential score (even if 0)
-                        const catName = CATEGORIES.find(c=>c.id===categoryId).name;
-
-                        // **Potential Score Highlighting Change:** Only add 'potential' class if score > 0
-                        if (score > 0) {
-                            cell.classList.add('potential');
-                            cell.setAttribute('aria-label', `Mögliche Punkte für ${catName}: ${score}. Klicken zum Eintragen.`);
-                        } else {
-                            // Score is 0, don't add 'potential' class, use default ARIA label
-                            cell.classList.remove('potential'); // Ensure it's removed if previously set
-                            cell.setAttribute('aria-label', defaultAriaLabel(catName));
-                        }
-                    }
-                }
-            });
-        }
-
-         function clearPotentialScores() {
-            const currentPlayer = players[currentPlayerIndex];
-            // Select all cells for the current player that are not filled
-            const availableCells = scorecardBody.querySelectorAll(`.score-cell.available[data-player-id="${currentPlayer.id}"]`);
-
-            availableCells.forEach(cell => {
-                cell.classList.remove('potential'); // Remove potential class regardless of previous score
-                // Reset text only if it wasn't explicitly set to 0 by renderPotentialScores
-                if (cell.textContent !== '0') {
-                     cell.textContent = '-';
-                }
-                // Reset ARIA label to default
-                const categoryId = cell.dataset.categoryId;
-                const catName = CATEGORIES.find(c=>c.id===categoryId).name;
-                cell.setAttribute('aria-label', `Punkte für ${catName} für ${currentPlayer.name} eintragen`);
-            });
-         }
-
-
-        function nextTurn() {
-            currentPlayerIndex = (currentPlayerIndex + 1) % players.length;
-            currentRoll = 0;
-            heldDice.fill(false);
-            potentialScores = {}; // Clear potential scores object for the next player
-
-            if (currentPlayerIndex === 0) {
-                round++;
-            }
-
-            if (round > CATEGORIES.length) {
-                endGame();
-            } else {
-                updateGameInfo();
-                resetDiceAppearance(); // Show placeholder dice
-                rollBtn.disabled = false;
-                rollBtn.textContent = "Würfeln";
-                displayMessage(""); // Clear message for next player
-                // Don't calculate/render potential scores until first roll
-            }
-        }
-
-        function endGame() {
-            rollBtn.disabled = true;
-            displayMessage("Spiel vorbei!", "info");
-
-            let winningScore = -1;
-            let winners = [];
-            const finalPlayerData = []; // For history saving
-
-            const finalScoresHTML = players.map(player => {
-                const totalScoreCell = document.getElementById(`totalScore-${player.id}`);
-                const score = parseInt(totalScoreCell.textContent);
-                finalPlayerData.push({ name: player.name, score: score }); // Save for history
-
-                 if (score > winningScore) {
-                    winningScore = score;
-                    winners = [player.name];
-                } else if (score === winningScore) {
-                    winners.push(player.name);
-                }
-                return `<p><span class="font-semibold">${player.name}:</span> ${score} Punkte</p>`;
-            }).join('');
-
-            finalScoresDiv.innerHTML = finalScoresHTML;
-
-            if (winners.length === 1) {
-                winnerMessage.textContent = `${winners[0]} hat gewonnen! Herzlichen Glückwunsch!`;
-            } else {
-                 winnerMessage.textContent = `Unentschieden zwischen ${winners.join(' und ')}!`;
-            }
-
-            // Save game to history
-            const gameResult = {
-                date: new Date().toISOString(),
-                players: finalPlayerData,
-                winnerNames: winners
-            };
-            addGameToHistory(gameResult);
-
-
-            gameOverOverlay.classList.remove('hidden');
-            gameOverOverlay.classList.add('show');
-
-        }
-
-        function restartGame() {
-            gameOverOverlay.classList.remove('show');
-            gameOverOverlay.classList.add('hidden');
-            gameArea.classList.add('hidden');
-            playerSetupSection.classList.remove('hidden');
-            gameHistorySection.classList.remove('hidden'); // Show history again
-            // Reload saved names for setup
-            loadPlayerNames();
-            displayHistory(); // Refresh history display
-        }
-
-        function displayMessage(msg, type = "error") {
-            gameMessage.textContent = msg;
-            gameMessage.className = `mt-4 text-center font-medium h-6 ${type === 'error' ? 'text-red-600' : 'text-blue-600'}`;
-             // Make the message accessible to screen readers
-             gameMessage.setAttribute('role', 'alert');
-             gameMessage.setAttribute('aria-live', 'assertive');
-
-            // Clear message after a few seconds? Maybe not, could be annoying.
-            // setTimeout(() => { gameMessage.textContent = ''; gameMessage.removeAttribute('role'); }, 5000);
-        }
 
         // --- SCORING CALCULATIONS ---
+        // +++ NEU: Fehlende calculatePotentialScores Funktion +++
+        function calculatePotentialScores() {
+            potentialScores = {};
+            // Sicherstellen, dass Spielerdaten gültig sind
+            if (!players || players.length === 0 || !players[currentPlayerIndex]) {
+                console.error("Kann mögliche Punkte nicht berechnen: Ungültige Spielerdaten.");
+                return;
+            }
+            const currentPlayer = players[currentPlayerIndex];
+            CATEGORIES.forEach(cat => {
+                // Prüfen, ob die Kategorie im Score-Objekt des Spielers existiert und null ist
+                if (scores[currentPlayer.id]?.[cat.id] === null) { // Nur für verfügbare Kategorien berechnen
+                    potentialScores[cat.id] = calculateScoreForCategory(cat.id, diceValues);
+                } else {
+                    potentialScores[cat.id] = null; // Als nicht berechenbar markieren (bereits gefüllt)
+                }
+            });
+            // console.log("Calculated potentials:", potentialScores); // Optional: Zum Debuggen
+        }
+
+        // +++ NEU: Fehlende calculateScoreForCategory Funktion (Definition) +++
         function calculateScoreForCategory(categoryId, dice) {
-            const counts = countDice(dice); // {1: count, 2: count, ...}
+            const counts = countDice(dice);
             const sortedDice = [...dice].sort();
             const sum = dice.reduce((a, b) => a + b, 0);
-
             switch (categoryId) {
-                // Upper Section
                 case 'ones': return (counts[1] || 0) * 1;
                 case 'twos': return (counts[2] || 0) * 2;
                 case 'threes': return (counts[3] || 0) * 3;
                 case 'fours': return (counts[4] || 0) * 4;
                 case 'fives': return (counts[5] || 0) * 5;
                 case 'sixes': return (counts[6] || 0) * 6;
-
-                // Lower Section
-                case 'threeOfAKind':
-                    return Object.values(counts).some(count => count >= 3) ? sum : 0;
-                case 'fourOfAKind':
-                    return Object.values(counts).some(count => count >= 4) ? sum : 0;
+                case 'threeOfAKind': return Object.values(counts).some(count => count >= 3) ? sum : 0;
+                case 'fourOfAKind': return Object.values(counts).some(count => count >= 4) ? sum : 0;
                 case 'fullHouse':
-                    const vals = Object.values(counts).filter(c => c > 0); // Get counts of present dice
-                    return vals.length === 2 && (vals.includes(3) && vals.includes(2)) ? 25 : 0;
-                 case 'smallStraight':
-                    const uniqueSorted = [...new Set(sortedDice)]; // Remove duplicates e.g. [1,1,2,3,4] -> [1,2,3,4]
-                    // Check for 1-2-3-4, 2-3-4-5, or 3-4-5-6 by checking subsequences of length 4
+                    const vals = Object.values(counts).filter(c => c > 0);
+                    return vals.length === 2 && vals.includes(3) ? 25 : 0;
+                case 'smallStraight':
+                    const uniqueSorted = [...new Set(sortedDice)];
+                    const straights = ['1234', '2345', '3456'];
                     for (let i = 0; i <= uniqueSorted.length - 4; i++) {
                         const sub = uniqueSorted.slice(i, i + 4);
+                        // Prüft auf arithmetische Sequenz mit Differenz 1
                         if (sub[3] === sub[0] + 3 && sub[2] === sub[0] + 2 && sub[1] === sub[0] + 1) {
-                             // Check specific required straights
-                             const seqStr = sub.join('');
-                             if (seqStr === '1234' || seqStr === '2345' || seqStr === '3456') {
-                                 return 30;
-                             }
+                            // Prüft ob diese Sequenz eine der benötigten ist (redundant, aber sicher)
+                            if (straights.includes(sub.join(''))) return 30;
                         }
+                    }
+                    // Fallback-Check für Sequenzen, die durch Duplikate unterbrochen sind, z.B. [1,2,2,3,4] -> check '1234'
+                    if (straights.some(s => s.split('').every(digit => uniqueSorted.includes(parseInt(digit))))) {
+                        return 30;
                     }
                     return 0;
                 case 'largeStraight':
-                     const uniqueLG = [...new Set(sortedDice)];
-                     // Check for 1-2-3-4-5 or 2-3-4-5-6 by checking subsequences of length 5
-                     for (let i = 0; i <= uniqueLG.length - 5; i++) {
-                         const sub = uniqueLG.slice(i, i + 5);
-                         if (sub[4] === sub[0] + 4 && sub[3] === sub[0] + 3 && sub[2] === sub[0] + 2 && sub[1] === sub[0] + 1) {
-                             const seqStr = sub.join('');
-                              if (seqStr === '12345' || seqStr === '23456') {
-                                 return 40;
-                              }
-                         }
-                     }
+                    const uniqueLG = [...new Set(sortedDice)];
+                    const largeStraights = ['12345', '23456'];
+                    for (let i = 0; i <= uniqueLG.length - 5; i++) {
+                        const sub = uniqueLG.slice(i, i + 5);
+                        if (sub[4] === sub[0] + 4 && sub[3] === sub[0] + 3 && sub[2] === sub[0] + 2 && sub[1] === sub[0] + 1) {
+                            if (largeStraights.includes(sub.join(''))) return 40;
+                        }
+                    }
                     return 0;
-                case 'ziffar': // Yahtzee
-                    return Object.values(counts).some(count => count >= 5) ? 50 : 0;
-                case 'chance':
-                    return sum;
+                case 'ziffar': return Object.values(counts).some(count => count >= 5) ? 50 : 0;
+                case 'chance': return sum;
                 default: return 0;
             }
         }
 
-        function countDice(dice) {
-            const counts = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 };
-            dice.forEach(d => {
-                if (d >= 1 && d <= 6) { // Ensure dice value is valid
-                   counts[d]++;
+        // --- Dice Rolling & Rendering ---
+        function rollDice() {
+            if (currentRoll >= MAX_ROLLS || !diceContainer || !rollBtn) return;
+            displayMessage("");
+            currentRoll++;
+            const diceElements = diceContainer.querySelectorAll('.dice'); // Die vorhandenen Würfel holen
+            let animationsPending = 0;
+
+            diceValues.forEach((_, i) => {
+                if (!heldDice[i]) {
+                    animationsPending++;
+                    diceValues[i] = Math.floor(Math.random() * 6) + 1;
+                    const dieElement = diceElements[i]; // Das *existierende* Element nehmen
+
+                    if (dieElement) {
+                        // --- NEU: Reflow erzwingen ---
+                        // Liest eine Eigenschaft, um sicherzustellen, dass der Browser
+                        // den aktuellen Zustand verarbeitet hat, bevor die Animation startet.
+                        void dieElement.offsetWidth;
+                        // --- Ende NEU ---
+
+                        dieElement.classList.add('rolling'); // Animation starten
+
+                        // Timeout, um die Animation zu beenden und den Würfel neu zu zeichnen
+                        setTimeout(() => {
+                            if (dieElement) { // Sicherstellen, dass das Element noch existiert
+                                dieElement.classList.remove('rolling');
+                                // Verwende renderSingleDie, um nur diesen einen Würfel zu aktualisieren
+                                renderSingleDie(dieElement, diceValues[i], heldDice[i]);
+                            }
+                            animationsPending--;
+                            if (animationsPending === 0) { // Erst *nach* allen Animationen Punkte berechnen
+                                calculatePotentialScores();
+                                renderPotentialScores();
+                            }
+                        }, 500); // Muss mit der CSS-Animationsdauer übereinstimmen
+                    } else {
+                        // Sollte nicht passieren, wenn diceElements korrekt ist
+                        console.error(`Würfel-Element mit Index ${i} nicht gefunden!`);
+                        animationsPending--;
+                    }
+                } else {
+                    // Gehaltene Würfel müssen nicht animiert, aber korrekt angezeigt werden
+                    const dieElement = diceElements[i];
+                    if (dieElement) {
+                        renderSingleDie(dieElement, diceValues[i], heldDice[i]);
+                    }
                 }
             });
-            return counts;
-        }
 
-         function checkZiffar(dice) {
-             if (dice.length !== NUM_DICE || dice.some(d => d === undefined || d === null)) return false; // Basic check
-             const first = dice[0];
-             return dice.every(d => d === first);
-         }
+            // NICHT MEHR NÖTIG / FEHLERHAFT: renderDice(); // <- Entfernen!
+
+            updateGameInfo(); // Spielinfos aktualisieren
+
+            // Falls keine Würfel animiert wurden (alle gehalten), trotzdem Scores berechnen
+            if (animationsPending === 0 && currentRoll > 0) {
+                calculatePotentialScores();
+                renderPotentialScores();
+            }
+
+            // Button-Status aktualisieren
+            if (currentRoll === MAX_ROLLS) {
+                rollBtn.disabled = true;
+                rollBtn.textContent = "Wähle Kategorie";
+                rollBtn.className = 'btn btn-secondary';
+                displayMessage("Letzter Wurf! Wähle eine Kategorie.", "info");
+            } else {
+                rollBtn.disabled = false; // Sicherstellen, dass er nicht disabled bleibt
+                rollBtn.textContent = `Würfeln (${MAX_ROLLS - currentRoll} übrig)`;
+                rollBtn.className = 'btn btn-primary';
+            }
+        }
 
     </script>
 </body>
+
 </html>
